@@ -13,7 +13,7 @@ Install the software in your environment and configure the path in the RNArefine
 | [RNAfold](https://www.tbi.univie.ac.at/RNA/)  | RNA secondary structure prediction tool  |
 | [Linearfold](https://github.com/LinearFold/LinearFold)  | RNA secondary structure prediction tool |
 | [CSSR](https://github.com/pylelab/CSSR)  | Base-pair identification tool  |
-| [CT2DB](https://www.tbi.univie.ac.at/RNA/ct2db.1.html)  | Tool to produce dot bracket notation of an RNA secondary structure  |
+| [CT2DB](https://www.tbi.univie.ac.at/RNA/ct2db.1.html)  | Tool to produce dot-bracket notation of an RNA secondary structure  |
 | [Arena](https://github.com/pylelab/Arena)  | Full-atomic reconstruction of RNA 3d structures  |
   
 *Set the PETfold path as follows.
@@ -35,7 +35,7 @@ make
 ```
 
 ## 2. RNA refinement
-### 2-1. Automated process
+### 2-1. Running automated process of RNAoptimizer
 RNAoptimizer refines the input structure based on predicted base-pairing and base-stacking interactions.  
 If you want to run the whole process without any customizations, run the following bash script.
 ```
@@ -44,7 +44,24 @@ bash rnarefiner.sh [Path to the initial structure] [Path to the output directory
   
 ### 2-2. Running each process of RNAoptimizer
 If you want to run a specific process with any customized processes rather than the whole process of RNAoptimizer, see the following sections.
+  
 #### 2-1. Base-pairing prediction
+RNAoptimizer predicts an optimized RNA secondary structure by integrating the input 3D structure with a secondary structure predicted by a ResNet-based neural network.
+If you want to obtain the optimized secondary structure, run the following command.
+```
+python bp_predict.py [option]
+<option>
+| option  | Description | Default |
+| :------------- | :------------- | | :------------- |
+| -pdb  | Path to the initial structure (Required) | - |
+| -o  | Path to the output directory (Required) | - |
+```
+
+If you only want to obtain the secondary structure predicted by the ResNet-based neural network, run the following command.
+```
+
+```
+
 A ResNet-based neural network model predicts base-paring (secondary structure) as follows.
 
   
