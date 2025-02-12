@@ -38,7 +38,7 @@ make
 RNAoptimizer refines the input structure based on predicted base-pairing and base-stacking interactions.  
 If you want to run the whole process without any customizations, run the following bash script.
 ```
-bash rnarefiner.sh [Path to the initial structure] [Path to output directory]
+bash rnarefiner.sh [Path to the initial structure] [Path to the output directory]
 ```
   
 ## 2'. Customized process
