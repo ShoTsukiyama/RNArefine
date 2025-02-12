@@ -2,7 +2,7 @@
 This package refines RNA 3D structures and predicts base-pairing and base-stacking interactions.
 RNAoptimizer can be used under The MIT License.
 
-##1. Installation
+## 1. Installation
 RNAoptimizer used the following third-party software.
 Install the software in your environment and configure the path in the /RNArefiner/config.json file.
 | Software  | Description |
