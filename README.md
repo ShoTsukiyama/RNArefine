@@ -36,7 +36,7 @@ make
 
 ## 2. RNA refinement
 This package offers two methods for structure refinement and the prediction of base-pairing and base-stacking interactions: an automated process and a customizable process.  
-The automated process enables structure refinement without detailed parameter settings, while the customizable process allows for user-defined adjustments to each step.  
+The automated process enables structure refinement without detailed parameter settings, while the customizable process allows for user-defined adjustments to each process.  
 
 ### 2-1. Automated process
 RNAoptimizer refines the input structure based on predicted base-pairing and base-stacking interactions.  
@@ -47,6 +47,7 @@ bash rnarefiner.sh [Path to the initial structure] [Path to the output directory
   
 ### 2-2. Customizable process
 If you want to run a specific process with any customized processes rather than the whole process of RNAoptimizer, see the following sections.
+
   
 #### 2-1. Base-pairing prediction
 RNAoptimizer predicts an optimized RNA secondary structure by integrating the input 3D structure with a secondary structure predicted by a ResNet-based neural network as follows.
