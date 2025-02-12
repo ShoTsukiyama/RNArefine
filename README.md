@@ -41,7 +41,7 @@ If you want to run the whole process without any customizations, run the followi
 bash rnarefiner.sh [Path to the initial structure] [Path to output directory]
 ```
   
-## 2. Customized process
+## 2'. Customized process
 If you want to run a specific process with any customized processes rather than the whole process of RNAoptimizer, see the following sections.
 ### 2-1. Base-pairing prediction
 A ResNet-based neural network model predicts base-paring (secondary structure) as follows.
