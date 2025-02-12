@@ -1,11 +1,10 @@
-# RNAoptimizer
 <img width="1088" alt="Image" src="https://github.com/user-attachments/assets/a5fd81a0-44ad-495c-8dc1-ab949bc3fcf9" />
 This package refines RNA 3D structures and predicts base-pairing and base-stacking interactions.  
 RNAoptimizer can be used under The MIT License.  
 (This project was accomplished through a collaboration between the Yang Zhang lab in the National University of Singapore and the Hiroyuki Kurata lab in the Kyushu Institute of Technology.)  
   
-## 1. Installation
-### 1-1. Setting of third-party software
+# 1. Installation
+## 1-1. Setting of third-party software
 RNAoptimizer used the following third-party software.  
 Install the software in your environment and configure the path in the RNArefiner/config.json file.  
 | Software  | Description |
@@ -23,11 +22,11 @@ export PETFOLDBIN="path/to/PETfold/bin"
 ```
 *In addition to those packages, configure the Python path in the RNArefiner/config.json file. 
   
-### 1-2. Downloading of pre-defined parameters
+## 1-2. Downloading of pre-defined parameters
 (Not necessary for base-paring and base-stacking prediction)
 Download pre-defined parameters from [here](https://1drv.ms/f/c/7340de942a07a197/EkuUvze_mWpJqsx22H2cz1wBSbRjelLEU5s3J6M0EC_mVg?e=d1WekU), and locate them on the /RNArefiner/param.  
   
-### 1-3. Setup of refinement package
+## 1-3. Setup of refinement package
 (Not necessary for base-paring and base-stacking prediction)
 Compile on the RNArefiner/src
 ```
@@ -35,23 +34,23 @@ cd RNArefiner/src
 make
 ```
 
-## 2. RNA refinement
+# 2. RNA refinement
 This package offers two methods for structure refinement and the prediction of base-pairing and base-stacking interactions: an automated process and a customizable process.  
 The automated process enables structure refinement without detailed parameter settings,  
 while the customizable process allows for user-defined adjustments to each process.  
 
-### 2-1. Automated process
+## 2-1. Automated process
 RNAoptimizer refines the input structure based on predicted base-pairing and base-stacking interactions.  
 If you want to run the whole process without any customizations, run the following bash script.
 ```
 bash rnarefiner.sh [Path to the initial structure] [Path to the output directory]
 ```
   
-### 2-2. Customizable process
+## 2-2. Customizable process
 If you want to run a specific process with any customized processes rather than the whole process of RNAoptimizer, see the following sections.
 
   
-#### 2-1. Base-pairing prediction
+### 2-1. Base-pairing prediction
 RNAoptimizer predicts an optimized RNA secondary structure by integrating the input 3D structure with a secondary structure predicted by a ResNet-based neural network as follows.
 ```
 python bp_predict.py [option]
@@ -74,14 +73,14 @@ If you only want to obtain the secondary structure predicted by the ResNet-based
 python bp_predict.py -fasta input.fa  -o ./output
 ```
   
-#### 2-2. Base-stacking prediction
+### 2-2. Base-stacking prediction
 A ResNet-based neural network model predicts base-stacking as follows.
 
   
-#### 2-3. RNA 3d structure refinement
+### 2-3. RNA 3d structure refinement
 
   
-## Citation
+# Citation
 
 
 
