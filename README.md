@@ -36,7 +36,8 @@ make
 
 ## 2. RNA refinement
 This package offers two methods for structure refinement and the prediction of base-pairing and base-stacking interactions: an automated process and a customizable process.  
-The automated process enables structure refinement without detailed parameter settings, while the customizable process allows for user-defined adjustments to each process.  
+The automated process enables structure refinement without detailed parameter settings,  
+while the customizable process allows for user-defined adjustments to each process.  
 
 ### 2-1. Automated process
 RNAoptimizer refines the input structure based on predicted base-pairing and base-stacking interactions.  
@@ -71,10 +72,6 @@ If you only want to obtain the secondary structure predicted by the ResNet-based
 ```
 python bp_predict.py -fasta input.fa  -o ./output
 ```
-
-
-A ResNet-based neural network model predicts base-paring (secondary structure) as follows.
-
   
 #### 2-2. Base-stacking prediction
 A ResNet-based neural network model predicts base-stacking as follows.
