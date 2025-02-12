@@ -58,9 +58,9 @@ python bp_predict.py [option]
 (Option)
 | Software  | Description | Default |
 | :-------------: | :------------- | :-------------: |
-| -pdb  | Path to the initial structure | - | 
-| -fasta  | Path to the fasta file | - | 
-| -o  | Path to the output directory | - |
+| -pdb  | Path to a pdb file | - | 
+| -fasta  | Path to a fasta file | - | 
+| -output or -o  | Output directory | - |
 | -w  | Weight of the secondary structure predicted by the ResNet-based neural network. (see the original paper) | 0.4 |
 
 If you want to obtain the optimized secondary structure of the input structure, run the following command.  
