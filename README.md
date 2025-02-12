@@ -35,24 +35,23 @@ make
 ```
 
 ## 2. RNA refinement
-RNAoptimizer refines the input structure based on predicted base-pairing and base-stacking interactions.
+RNAoptimizer refines the input structure based on predicted base-pairing and base-stacking interactions.  
 If you want to run the whole process without any customizations, run the following bash script.
 ```
-cd RNArefiner/src
-make
+rnarefiner.sh [Path to the initial structure] [Path to output directory]
 ```
-
-If you want to run a specific process rather than the whole process of RNAoptimizer, see the following sections.
-
-## 2-2. Base-pairing prediction
+  
+## 2. Customized process
+If you want to run a specific process with any customized processes rather than the whole process of RNAoptimizer, see the following sections.
+### 2-1. Base-pairing prediction
 A ResNet-based neural network model predicts base-paring (secondary structure) as follows.
 
   
-## -2. Base-stacking prediction
+### 2-2. Base-stacking prediction
 A ResNet-based neural network model predicts base-stacking as follows.
 
   
-## 2-3. RNA 3d structure refinement
+### 2-3. RNA 3d structure refinement
 
   
 ## Citation
