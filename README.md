@@ -50,12 +50,12 @@ RNAoptimizer predicts an optimized RNA secondary structure by integrating the in
 If you want to obtain the optimized secondary structure, run the following command.
 ```
 python bp_predict.py [option]
+```
 <option>
 | option  | Description | Default |
 | :------------- | :------------- | | :------------- |
 | -pdb  | Path to the initial structure (Required) | - |
 | -o  | Path to the output directory (Required) | - |
-```
 
 If you only want to obtain the secondary structure predicted by the ResNet-based neural network, run the following command.
 ```
