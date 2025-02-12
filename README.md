@@ -1,7 +1,7 @@
 # RNAoptimizer
 This package refines RNA 3D structures and predicts base-pairing and base-stacking interactions.  
 RNAoptimizer can be used under The MIT License.  
-(This project was accomplished through a collaboration between the Yang Zhang lab in the National University of Singapore and the Kurata Hiroyuki lab in the Kyushu Institute of Technology.)  
+(This project was accomplished through a collaboration between the Yang Zhang lab in the National University of Singapore and the Hiroyuki Kurata lab in the Kyushu Institute of Technology.)  
   
 ## 1. Installation
 ### 1-1. Setting of third-party software
