@@ -62,7 +62,7 @@ python bp_predict.py [option]
 
 
 If you want to obtain the optimized secondary structure, run the following command.  
-$\P=P_{predict}$
+$P=P_{predict}$
 
 If you only want to obtain the secondary structure predicted by the ResNet-based neural network from the sequence, run the following command.
 
