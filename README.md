@@ -1,4 +1,4 @@
-<img width="1088" alt="Image" src="https://github.com/user-attachments/assets/a5fd81a0-44ad-495c-8dc1-ab949bc3fcf9" />
+<img width="1088" alt="Image" src="https://github.com/user-attachments/assets/b9ce2f46-959a-408e-85bf-170babdf951a" />
 This package refines RNA 3D structures and predicts base-pairing and base-stacking interactions.  
 RNAoptimizer can be used under The MIT License.  
 (This project was accomplished through a collaboration between the Yang Zhang lab in the National University of Singapore and the Hiroyuki Kurata lab in the Kyushu Institute of Technology.)  
