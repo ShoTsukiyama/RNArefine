@@ -47,10 +47,6 @@ If you want to run a specific process with any customized processes rather than 
   
 #### 2-1. Base-pairing prediction
 RNAoptimizer predicts an optimized RNA secondary structure by integrating the input 3D structure with a secondary structure predicted by a ResNet-based neural network as follows.
-$$
-P=P_{predict}
-$$
-
 ```
 python bp_predict.py [option]
 ```
@@ -60,18 +56,18 @@ python bp_predict.py [option]
 | -pdb  | Path to the initial structure | - | 
 | -fasta  | Path to the fasta file | - | 
 | -o  | Path to the output directory | - |
-| -w  | Weight of the secondary structure predicted by the ResNet-based neural network. | 0.4 |
+| -w  | Weight of the secondary structure predicted by the ResNet-based neural network. (see the original paper) | 0.4 |
 
-
-If you want to obtain the optimized secondary structure, run the following command.  
-
-
-If you only want to obtain the secondary structure predicted by the ResNet-based neural network from the sequence, run the following command.
-
-
+If you want to obtain the optimized secondary structure of the input structure, run the following command.  
+```
+python bp_predict.py -pdb input.pdb  -o ./output
+```
+  
+If you only want to obtain the secondary structure predicted by the ResNet-based neural network from the sequence, run the following command.  
+```
+python bp_predict.py -fasta input.fa  -o ./output
 ```
 
-```
 
 A ResNet-based neural network model predicts base-paring (secondary structure) as follows.
 
