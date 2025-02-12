@@ -1,6 +1,6 @@
 # RNAoptimizer
 This package refines RNA 3D structures and predicts base-pairing and base-stacking interactions.  
-RNAoptimizer can be used under The MIT License.
+RNAoptimizer can be used under The MIT License.  
 (This project was accomplished through a collaboration between the Yang Zhang lab in the National University of Singapore and the Kurata Hiroyuki lab in the Kyushu Institute of Technology.)  
   
 ## 1. Installation
@@ -15,7 +15,12 @@ Install the software in your environment and configure the path in the RNArefine
 | [CSSR](https://github.com/pylelab/CSSR)  | Base-pair identification tool  |
 | [CT2DB](https://www.tbi.univie.ac.at/RNA/ct2db.1.html)  | Tool to produce dot bracket notation of an RNA secondary structure  |
 | [Arena](https://github.com/pylelab/Arena)  | Full-atomic reconstruction of RNA 3d structures  |
-In addtion to those packages, configure the python path in the RNArefiner/config.json file. 
+  
+*Set the PETfold path as follows.
+```
+export PETFOLDBIN="path/to/PETfold/bin"
+```
+*In addition to those packages, configure the Python path in the RNArefiner/config.json file. 
   
 ### 1-2. Downloading of pre-defined parameters
 (Not necessary for base-paring and base-stacking prediction)
@@ -29,15 +34,25 @@ cd RNArefiner/src
 make
 ```
 
-## 2. Base-pairing prediction
+## 2. RNA refinement
+RNAoptimizer refines the input structure based on predicted base-pairing and base-stacking interactions.
+If you want to run the whole process without any customizations, run the following bash script.
+```
+cd RNArefiner/src
+make
+```
+
+If you want to run a specific process rather than the whole process of RNAoptimizer, see the following sections.
+
+## 2-2. Base-pairing prediction
 A ResNet-based neural network model predicts base-paring (secondary structure) as follows.
 
   
-## 3. Base-stacking prediction
+## -2. Base-stacking prediction
 A ResNet-based neural network model predicts base-stacking as follows.
 
   
-## 4. RNA 3d structure refinement
+## 2-3. RNA 3d structure refinement
 
   
 ## Citation
