@@ -61,8 +61,8 @@ python bp_predict.py [option]
 | -w  | Weight of the secondary structure predicted by the ResNet-based neural network. | 0.4 |
 
 
-If you want to obtain the optimized secondary structure, run the following command.
-$`\P=P_predict$
+If you want to obtain the optimized secondary structure, run the following command.  
+$\P=P_{predict}$
 
 If you only want to obtain the secondary structure predicted by the ResNet-based neural network from the sequence, run the following command.
 
