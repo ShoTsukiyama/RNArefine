@@ -97,7 +97,6 @@ Here, base-paring and base-stacking interaction information must be inputted as 
 | -libcwg | File path for the Weights of each template structure (-libdir must be specified) | 1/<template number> if -libdir is specified, otherwise None |
 | -time | Simulation time | 10 |
   
-# Citation
   
 
 
