@@ -107,9 +107,8 @@ In the energy calculation, the distance maps between the template structures and
 If you emphasize the effects of template structure, set a higher weight by the option of "-libwg".
 In addition, you can assign the different 
 
-*,where*  
-$$ E_{\text{template}} $$
-Energy of the user-defined template structures
+$$ E_{\text{template}} = w_{\text{template}} \times {\sum_{i=1}^{n} u_{\text{template},i} \times E_{\text{template},i}} $$  
+
   
   
 
