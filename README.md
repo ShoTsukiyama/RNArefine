@@ -93,6 +93,7 @@ Here, base-paring and base-stacking interaction information must be inputted as 
 | Option | Description | Default |
 | :-------------: | :------------- | :-------------: |
 | -libdir | Directory of additional template structures (All PDB files in the directory are loaded) | None |
+| -libwg | Weights of an additional template structures-based energy (-libdir must be specified) | 10 if -libdir is specified, otherwise None |
 
 You can specify the customized template structures by the option of "-libdir".
 In the energy calculation, the distance maps between the template structures and the refining structure.
