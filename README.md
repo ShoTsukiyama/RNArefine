@@ -106,11 +106,12 @@ Specify the directory including the customized template structures by the option
 In the energy calculation, the distance maps between the template structures and the refining structure.
 If you emphasize the effects of template structure, set a higher weight by the option of "-libwg".
 In addition, you can assign the different 
-```
-$ E_{\text{template}} = w_{\text{template}} \times {\sum_{i=1}^{n} u_{\text{template},i} \times E_{\text{template},i}} $
-```
-$$ E_{\text{template}} $$
-Energy of the user-defined template structures
+
+When $a \ne 0$, there are two solutions
+to $(ax^2 + bx + c = 0)$ and they are 
+$$ x = {-b \pm \sqrt{b^2-4ac} \over 2a} $$
+
+
 
 
   
