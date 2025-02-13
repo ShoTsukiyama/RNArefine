@@ -102,7 +102,7 @@ The energy based on the user-defined template structures is calculated as follow
 $$
 E_{\text{template}}
 $$    
-
+  
 $$
 E_{\text{template}} = w_{\text{template}} {\sum_{i=1}^{n} {u_{\text{template},i} E_{\text{template},i}}}
 $$    
@@ -123,10 +123,10 @@ $$
 *In the energy calculation, the distance maps between the template structures and the refining structure.  
 *You can change the weights of template structures-based energy *w* by the option of "-libwg".  
 *If you want to set the weights of each template structure *u*, you need to specify the file with the following formats by the option of "-libcwg".  
-Name_of__template_structure_1.pdb,Weight_1  
-Name_of__template_structure_2.pdb,Weight_2  
+structure_1.pdb,Weight_1  
+structure_2.pdb,Weight_2  
 ...  
-Name_of__template_structure_N.pdb,Weight_N  
+structure_N.pdb,Weight_N  
 
 
 
