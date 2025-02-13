@@ -90,13 +90,12 @@ The following command executes refinements of RNA 3d structures.
 ```
 Here, base-paring and base-stacking interaction information must be inputted as follows.  
 (Other options)  
-| Option  | Description | Default |
+| Option | Description | Default |
 | :-------------: | :------------- | :-------------: |
 | -libdir | Directory of additional template structures (All PDB files in the directory are loaded) | None |
 | -libwg | Weights of an additional template structures-based energy  (-libdir must be specified) | 10 if -libdir is specified, otherwise None |
 | -libcwg | File path for the Weights of each template structure (-libdir must be specified) | 1/<template number> if -libdir is specified, otherwise None |
 | -time | Simulation time | 10 |
-  
 You can specify the customized template structures by the option of "-libdir".
 In the energy calculation, the distance maps between the template structures and the refining structure.
 If you emphasize the effects of template structure, set a higher weight by the option of "-libwg".
