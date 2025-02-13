@@ -96,6 +96,12 @@ Here, base-paring and base-stacking interaction information must be inputted as 
 | -libwg | Weights of an additional template structures-based energy  (-libdir must be specified) | 10 if -libdir is specified, otherwise None |
 | -libcwg | File path for the Weights of each template structure (-libdir must be specified) | 1/<template number> if -libdir is specified, otherwise None |
 | -time | Simulation time | 10 |
+you can specify the customized template structures by -libdir.
+In the energy calculation, the distance maps between the template structures and the refining structure.
+If you emphasize the effects of template structure, set a higher weight by using -libwg.
+In addition, you can assign the different 
+
+\left( \sum_{k=1}^n a_k b_k \right)^2 \leq \left( \sum_{k=1}^n a_k^2 \right) \left( \sum_{k=1}^n b_k^2 \right)
   
   
 
