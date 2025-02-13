@@ -108,7 +108,7 @@ If you emphasize the effects of template structure, set a higher weight by the o
 In addition, you can assign the different 
 
 $$ E_{\text{template}} = w_{\text{template}} \times {\sum_{i=1}^{n} u_{\text{template},i} \times E_{\text{template},i}} $$  
-*,where*  
+,where
 
 
   
