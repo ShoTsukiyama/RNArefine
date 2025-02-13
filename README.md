@@ -99,14 +99,6 @@ Here, base-paring and base-stacking interaction information must be inputted as 
 
 The energy based on the user-defined template structures is calculated as follows.
 
-
-Specify the directory including the customized template structures by the option of "-libdir".
-
-
-In the energy calculation, the distance maps between the template structures and the refining structure.
-If you emphasize the effects of template structure, set a higher weight by the option of "-libwg".
-In addition, you can assign the different 
-
 $$
 E_{\text{template}}
 $$    
@@ -127,6 +119,20 @@ $$
 $$
 E_{\text{template},i} \text{: Energy of} i\text{th template structure}
 $$  
+
+In the energy calculation, the distance maps between the template structures and the refining structure.
+You can change the weights of template structures-based energy $$ w_{\text{template}} $$ by the option of "-libwg".
+If you want to set the weights of each template structure $$ u_{\text{template},i} $$, you need to specify the file with the following formats by the option of "-libcwg"
+Name_of__template_structure_1.pdb,Weight_1  
+Name_of__template_structure_2.pdb,Weight_2  
+...
+Name_of__template_structure_N.pdb,Weight_N  
+
+
+
+
+
+
 
 
 
