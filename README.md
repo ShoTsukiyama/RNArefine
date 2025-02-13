@@ -58,9 +58,9 @@ python bp_predict.py [option]
 (Option)
 | Software  | Description | Default |
 | :-------------: | :------------- | :-------------: |
-| -pdb  | Path to a pdb file | - | 
-| -fasta  | Path to a fasta file | - | 
-| -output or -o  | Output directory | - |
+| --pdb  | Path to a pdb file | - | 
+| --fasta  | Path to a fasta file | - | 
+| --output or -o  | Output directory | - |
 | -w  | Weight of the secondary structure predicted by the ResNet-based neural network. (see the original paper) | 0.4 |
 
 If you want to obtain the optimized secondary structure of the input structure, run the following command.  
@@ -72,14 +72,25 @@ If you only want to obtain the secondary structure predicted by the ResNet-based
 ```
 python RNArefiner/bin/bppredictor.py --fasta input.fa  -o ./output
 ```
-As a result, bp.list file is outputted.
+As a result, bp.list file is outputted under the directory specified by -o.
   
 ### 2-2. Base-stacking prediction
 RNAoptimizer predicts optimized RNA base-stacking interactions by the ResNet-based neural network from the sequence, input structure, and secondary structure.
 ```
+python RNArefiner/bin/bppredictor.py --pdb [pdb file] --bp [bp.list file] -o [Output directory]
+```
+(Option)
+| Software  | Description | Default |
+| :-------------: | :------------- | :-------------: |
+| --pdb  | Path to a pdb file | - | 
+| --bp  | Path to the bp.list file | - | 
+| --output or -o  | Output directory | - |
+
+ex)
+```
 python RNArefiner/bin/bppredictor.py --pdb input.pdb --bp bp.list -o ./output
 ```
-As a result, stack.list file is outputted.
+As a result, stack.list file is outputted under the directory specified by -o.
   
 ### 2-3. RNA 3d structure refinement
 
