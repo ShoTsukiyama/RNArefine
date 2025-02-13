@@ -53,16 +53,14 @@ If you want to run a specific process with any customized processes rather than 
 ### 2-1. Base-pairing prediction
 RNAoptimizer predicts an optimized RNA secondary structure by integrating the input 3D structure with a secondary structure predicted by a ResNet-based neural network as follows.
 ```
-python bp_predict.py [option]
+python bp_predict.py --pdb or --fasta [Path to pdb or fasta file] -o [Output directory] [option]
 ```
-(Option)
-| Software  | Description | Default |
+(Other options)
+| Option  | Description | Default |
 | :-------------: | :------------- | :-------------: |
-| --pdb  | Path to a pdb file | - | 
-| --fasta  | Path to a fasta file | - | 
-| --output or -o  | Output directory | - |
 | -w  | Weight of the secondary structure predicted by the ResNet-based neural network. (see the original paper) | 0.4 |
-
+  
+ex)
 If you want to obtain the optimized secondary structure of the input structure, run the following command.  
 ```
 python RNArefiner/bin/bppredictor.py --pdb input.pdb  -o ./output
@@ -79,13 +77,6 @@ RNAoptimizer predicts optimized RNA base-stacking interactions by the ResNet-bas
 ```
 python RNArefiner/bin/bppredictor.py --pdb [pdb file] --bp [bp.list file] -o [Output directory]
 ```
-(Option)
-| Software  | Description | Default |
-| :-------------: | :------------- | :-------------: |
-| --pdb  | Path to a pdb file | - | 
-| --bp  | Path to the bp.list file | - | 
-| --output or -o  | Output directory | - |
-
 ex)
 ```
 python RNArefiner/bin/bppredictor.py --pdb input.pdb --bp bp.list -o ./output
@@ -93,7 +84,19 @@ python RNArefiner/bin/bppredictor.py --pdb input.pdb --bp bp.list -o ./output
 As a result, stack.list file is outputted under the directory specified by -o.
   
 ### 2-3. RNA 3d structure refinement
+The following command executes refinements of RNA 3d structures.
+```
+/RNArefiner/bin/rnaoptimizer -i [path of input PDB] -o [directory to output] -bp [path of base pairing information] -st [path of stacking information] [other options]
+```
+Here, base-paring and base-stacking interaction information must be inputted as follows.
 
+(Other options)
+| Option  | Description | Default |
+| :-------------: | :------------- | :-------------: |
+| -libdir | Directory of additional template structures (All PDB files in the directory are loaded) | None |
+| -libwg | Weights of an additional template structures-based energy  (-libdir must be specified) | 10 if -libdir is specified, otherwise None |
+| -libcwg | File path for the Weights of each template structure (-libdir must be specified) | 1/<template number> if -libdir is specified, otherwise None |
+| -time | Simulation time | 10 |
   
 # Citation
 
