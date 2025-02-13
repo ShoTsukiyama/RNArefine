@@ -107,7 +107,7 @@ In the energy calculation, the distance maps between the template structures and
 If you emphasize the effects of template structure, set a higher weight by the option of "-libwg".
 In addition, you can assign the different 
 
-\left( \sum_{k=1}^n a_k b_k \right)^2 \leq \left( \sum_{k=1}^n a_k^2 \right) \left( \sum_{k=1}^n b_k^2 \right)
+$$ x = {-b \pm \sqrt{b^2-4ac} \over 2a} $$
   
   
 
