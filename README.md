@@ -93,7 +93,7 @@ Here, base-paring and base-stacking interaction information must be inputted as 
 | Option | Description | Default |
 | :-------------: | :-------------: | :-------------: |
 | -libdir | Directory of user-defined template structures (All PDB files in the directory are loaded) | None |
-| -libwg | Weights of an user-defined template structures-based energy (-libdir must be specified) | 10 if -libdir is specified, otherwise None |
+| -libwg | Weights of the template structures-based energy (-libdir must be specified) | 10 if -libdir is specified, otherwise None |
 | -libcwg | Weights of each template structure (-libdir must be specified) | 1/(template number) if -libdir is specified, otherwise None |
 | -time | Simulation time (hours) | 10 |
 
@@ -111,7 +111,7 @@ $$
 E_{\text{template}} \text{: Energy of the template structures}
 $$  
 $$
-w_{\text{template}} \text{: Weights of an user-defined template structures-based energy}
+w_{\text{template}} \text{: Weights of the template structures-based energy}
 $$  
 $$
 u_{\text{template},i} \text{: Weights of} i\text{th template structure}
