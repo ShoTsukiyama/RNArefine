@@ -99,9 +99,6 @@ Here, base-paring and base-stacking interaction information must be inputted as 
 
 The energy based on the user-defined template structures is calculated as follows.
 
-$$
-E_{\text{template}}
-$$    
   
 $$
 E_{\text{template}} = w_{\text{template}} {\sum_{i=1}^{n} {u_{\text{template},i} E_{\text{template},i}}}
