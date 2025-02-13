@@ -89,7 +89,6 @@ The following command executes refinements of RNA 3d structures.
 /RNArefiner/bin/rnaoptimizer -i [path of input PDB] -o [directory to output] -bp [path of base pairing information] -st [path of stacking information] [other options]
 ```
 Here, base-paring and base-stacking interaction information must be inputted as follows.
-
 (Other options)
 | Option  | Description | Default |
 | :-------------: | :------------- | :-------------: |
@@ -99,6 +98,7 @@ Here, base-paring and base-stacking interaction information must be inputted as 
 | -time | Simulation time | 10 |
   
 # Citation
+  
 
 
 
