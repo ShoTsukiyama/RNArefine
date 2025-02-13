@@ -112,7 +112,7 @@ E_{\text{template}}
 $$    
 
 $$
-E_{\text{template}} = w_{\text{template}} 
+E_{\text{template}} = w_{\text{template}} \times {\sum_{i=1}^{n} u_{\text{template},i}}
 $$    
 
 $$
