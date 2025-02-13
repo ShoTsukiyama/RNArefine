@@ -116,8 +116,14 @@ E_{\text{template}} = w_{\text{template}} {\sum_{i=1}^{n} {u_{\text{template},i}
 $$    
 
 $$
-E_{\text{template}} \text{Energy of the template structures}
-$$ 
+E_{\text{template}} \text{: Energy of the template structures}
+$$  
+$$
+w_{\text{template}} \text{: Weights of an user-defined template structures-based energy}
+$$  
+$$
+u_{\text{template},i} \text{: Weights of} i\text{: th template structure}
+$$  
 
 aaaa
 
