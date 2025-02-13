@@ -112,11 +112,11 @@ E_{\text{template}}
 $$    
 
 $$
-E_{\text{template}} = w_{\text{template}} \times {\sum_{i=1}^{n} {u_{\text{template},i} \times E_{\text{template},i}}}
+E_{\text{template}} = w_{\text{template}} {\sum_{i=1}^{n} {u_{\text{template},i} E_{\text{template},i}}}
 $$    
 
 $$
-E_{\text{template}}
+E_{\text{template}} \text{Energy of the template structures}
 $$ 
 
 
