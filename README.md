@@ -111,7 +111,9 @@ $$
 E_{\text{template}}
 $$    
 
-  
+$$
+E_{\text{template}}
+$$    
 
 
 
