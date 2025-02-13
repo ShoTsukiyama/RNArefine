@@ -112,10 +112,12 @@ E_{\text{template}}
 $$    
 
 $$
-E_{\text{template}} = w_{\text{template}}
+E_{\text{template}} = w_{\text{template}} 
 $$    
 
-
+$$
+E_{\text{template}}
+$$ 
 
 
 
