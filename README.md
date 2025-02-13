@@ -109,7 +109,7 @@ In addition, you can assign the different
 
 *,where*  
 $$ E_{\text{template}} $$
-: Energy of the user-defined template structures
+Energy of the user-defined template structures
   
   
 
