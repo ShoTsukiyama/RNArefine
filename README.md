@@ -65,20 +65,21 @@ python bp_predict.py [option]
 
 If you want to obtain the optimized secondary structure of the input structure, run the following command.  
 ```
-python RNArefiner/bin/bppredictor.py -pdb input.pdb  -o ./output
+python RNArefiner/bin/bppredictor.py --pdb input.pdb  -o ./output
 ```
   
 If you only want to obtain the secondary structure predicted by the ResNet-based neural network from the sequence, run the following command.  
 ```
-python RNArefiner/bin/bppredictor.py -fasta input.fa  -o ./output
+python RNArefiner/bin/bppredictor.py --fasta input.fa  -o ./output
 ```
+As a result, bp.list file is outputted.
   
 ### 2-2. Base-stacking prediction
 RNAoptimizer predicts optimized RNA base-stacking interactions by the ResNet-based neural network from the sequence, input structure, and secondary structure.
 ```
-python RNArefiner/bin/bppredictor.py -pdb input.pdb  -o ./output
+python RNArefiner/bin/bppredictor.py --pdb input.pdb --bp bp.list -o ./output
 ```
-
+As a result, stack.list file is outputted.
   
 ### 2-3. RNA 3d structure refinement
 
