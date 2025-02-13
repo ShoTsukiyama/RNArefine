@@ -122,8 +122,11 @@ $$
 w_{\text{template}} \text{: Weights of an user-defined template structures-based energy}
 $$  
 $$
-u_{\text{template},i} \text{: Weights of} i\text{: th template structure}
+u_{\text{template},i} \text{: Weights of} i\text{th template structure}
+$$  
+$$
+E_{\text{template},i} \text{: Energy of} i\text{th template structure}
 $$  
 
-aaaa
+
 
