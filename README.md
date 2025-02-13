@@ -125,7 +125,7 @@ You can change the weights of template structures-based energy $$ w_{\text{templ
 If you want to set the weights of each template structure $$ u_{\text{template},i} $$, you need to specify the file with the following formats by the option of "-libcwg"
 Name_of__template_structure_1.pdb,Weight_1  
 Name_of__template_structure_2.pdb,Weight_2  
-...
+...  
 Name_of__template_structure_N.pdb,Weight_N  
 
 
