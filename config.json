@@ -1,0 +1,10 @@
+
+{
+	"PETfoldPATH": "/RNArefinement/DRfold/PETfold/bin/PETfold",
+        "RNAfoldPATH": "/usr/local/bin/RNAfold",
+	"CSSRPATH": "/RNArefinement/program/src/single/bp_stack_contact/CSSR-Linux64",
+	"CT2DBPATH": "/usr/local/bin/ct2db",
+	"LinearfoldPATH": "/RNArefinement/program/src/single/bp_stack_contact/LinearFold-master/linearfold",
+	"ArenaPATH": "/RNArefinement/RNArefiner2/downloads/Arena-main/Arena",
+    "PythonPATH": "/home/dl-box/anaconda3/envs/drfold2/bin/python"
+}
