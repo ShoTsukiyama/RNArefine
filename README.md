@@ -3,13 +3,12 @@ This package predicts base-pairing and base-stacking interactions based on the R
   
 # 1. Installation  
 ## 1-1. Downloading of pre-defined parameters  
-Download the pre-defined parameters from [here](https://tmdacjp-my.sharepoint.com/:f:/r/personal/tsukiyama_s_afb4_m_isct_ac_jp/Documents/RNAref3D/git_parameters/file1?csf=1&web=1&e=tzM8PL). 
+Download the pre-defined parameters from [here](https://tmdacjp-my.sharepoint.com/:f:/r/personal/tsukiyama_s_afb4_m_isct_ac_jp/Documents/RNAref3D/git_parameters/file1?csf=1&web=1&e=tzM8PL).  
 Unzip the file (init_param.zip) and place the directory (init_param) in the /RNAref3D.  
 
 ## 1-2. Downloading of trained models  
 Download the trained models from [here](https://tmdacjp-my.sharepoint.com/:f:/r/personal/tsukiyama_s_afb4_m_isct_ac_jp/Documents/RNAref3D/git_parameters/file2?csf=1&web=1&e=VuniCD).  
 Unzip the file (models.zip) and place the directory (models) in the /RNAref3D/RNAref3Dbp.  
-Unzip the zipped file (models.zip) and locate them on the /RNAref3D.  
   
 ## 1-3. Setup of refinement package
 Compile on the RNAref3D
