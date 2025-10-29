@@ -16,6 +16,9 @@ Run make in the /RNAref3D directory to compile the program.
 make
 ```
     
+<br>
+<br>
+
 # 2. Full-atomic structure generation and RNA refinement
 This package offers two methods for structure refinement and the prediction of base-pairing and base-stacking interactions: an automated process and a customizable process.  
 The automated process enables structure refinement without detailed parameter settings,  
@@ -35,9 +38,9 @@ python RNAref3D/RNAref3Dbp/main.py --pdb [Path to the PDB file containing the ba
 (Other options)
 | Option  | Description | Default |
 | :-------------: | :-------------: | :-------------: |
-| -bp  | To predict base-stacking interactions only from base-pair information, specify the path to the base-pair file | None |
+| -bp  | To predict base-stacking interactions only from base-pair information, specify the path to the base-pair file | None |. 
 (Refer to the /RNAref3D/example/RNAref3D_bp.txt for the format of the base-pair file)
-    
+
 <br>
 
 example)   
@@ -52,6 +55,8 @@ python RNArefiner/bin/bppredictor.py --pdb input.pdb  -o ./output -bp RNAref3D_b
 ```
 As a result, the files RNAref3D_bp.txt and RNAref3D_stack.txt are output to the directory specified by -o.
    
+<br>
+
 ### 2-2. Full-atomic structure generation and RNA 3D structure refinement
 The following command executes the full-atomic structure generation and refinements of RNA 3D structures.
 ```
