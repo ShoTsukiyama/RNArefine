@@ -11,7 +11,7 @@ Download the trained models from [here](https://tmdacjp-my.sharepoint.com/:f:/r/
 Unzip the file (models.zip) and place the directory (models) in the /RNAref3D/RNAref3Dbp.  
   
 ## 1-3. Setup of refinement package
-Compile on the RNAref3D
+Run make in the /RNAref3D directory to compile the program.
 ```
 make
 ```
