@@ -1,7 +1,6 @@
 // BasicFunc.cpp: implementation of the BasicFunc class.
 //
 //////////////////////////////////////////////////////////////////////
-#include "CommonPara.hpp"
 #include "BasicFunc.hpp"
 
 //////////////////////////////////////////////////////////////////////
@@ -403,7 +402,6 @@ int diagonalize_symmetric(double matrix[3][3],
   if (!jacobi3(matrix, eigenval, vec, &n_rot)) 
   {
     printf("convergence failed\n");
-	exit(1);
     return (0);
   }
 
@@ -745,6 +743,23 @@ Point3d BasicFunc::unit(Point3d p1)
 	return temp;
 }
 
+Point3s BasicFunc::units(Point3s p1)
+{
+	Point3s temp;
+	double t=sqrt(p1.x*p1.x+p1.y*p1.y+p1.z*p1.z);
+	if(t<1e-40) 
+	{
+		temp.x=0;
+		temp.y=0;
+		temp.z=0;
+		return temp;
+	}
+	temp.x=p1.x/t;
+	temp.y=p1.y/t;
+	temp.z=p1.z/t;
+	return temp;
+}
+
 int BasicFunc::maxnormal(Point3d p1)
 {
 	int i;
@@ -815,7 +830,7 @@ bool BasicFunc::tor2pos22(float xi,float yi,float zi,float xj,float yj,float zj,
 	p23.x=xk-xj;p23.y=yk-yj;p23.z=zk-zj;
 ///*
 	//if(norm(p12)<epsilon*0.00001 || norm(p23)<epsilon*0.00001 || angv(p12,p23)/(180.0 / M_PI)<epsilon*0.001 || (PI-angv(p12,p23))/(180.0 / M_PI)<epsilon*0.001)
-	if(norm(p12)<EPS*0.00001 || norm(p23)<EPS*0.00001)
+	if(norm(p12)<EPS || norm(p23)<EPS)
 	{
 		int imax=maxnormal(p23);
 		if(imax==0)
@@ -862,6 +877,33 @@ bool BasicFunc::tor2pos22(float xi,float yi,float zi,float xj,float yj,float zj,
 
 	*xl=p3.x+xk;*yl=p3.y+yk;*zl=p3.z+zk;
 	return true;
+}
+
+void BasicFunc::getnormalvec(Point3s center1, Point3s res11, Point3s res12, Point3s &z){
+  Point3s u,v;
+
+  u=calcsubtract(res11, center1);
+  v=calcsubtract(res12, center1);
+
+  z=basecross(u,v);
+  basenormalize(z);
+
+  //baseangle = angleBetweenVectors(z1, z2);
+}
+
+double BasicFunc::angleBetweenVectors(Point3s a, Point3s b){
+    BasicFunc bf;
+    double dot = bf.dotv(a, b);
+    double normA = bf.norm(a);
+    double normB = bf.norm(b);
+    double cosTheta = dot / (normA * normB);
+
+	return cosTheta;
+    //double angle = acos(cosTheta);
+    //double angleInDegrees = angle * (180.0 / M_PI);
+    //if(angleInDegrees > 180) angleInDegrees=angleInDegrees-180;
+    //if(angleInDegrees < 0) angleInDegrees=angleInDegrees+180;
+    //return angleInDegrees;
 }
 
 
