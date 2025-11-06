@@ -3,12 +3,12 @@ This package predicts base-pairing and base-stacking interactions based on the R
   
 # 1. Installation  
 ## 1-1. Downloading of pre-defined parameters  
-Download the pre-defined parameters from [here](https://tmdacjp-my.sharepoint.com/:f:/r/personal/tsukiyama_s_afb4_m_isct_ac_jp/Documents/RNAref3D/git_parameters/file1?csf=1&web=1&e=tzM8PL).  
-Unzip the file (init_param.zip) and place the directory (init_param) in the /RNAref3D.  
+Download the statistical parameters and structure fragments from [here](https://tmdacjp-my.sharepoint.com/:f:/r/personal/tsukiyama_s_afb4_m_isct_ac_jp/Documents/RNAref3D/git_parameters/file1?csf=1&web=1&e=tzM8PL).  
+Unzip the file (init_param.zip) and place the directory (init_param) in the RNAref3D.  
 
 ## 1-2. Downloading of trained models  
 Download the trained models from [here](https://tmdacjp-my.sharepoint.com/:f:/r/personal/tsukiyama_s_afb4_m_isct_ac_jp/Documents/RNAref3D/git_parameters/file2?csf=1&web=1&e=VuniCD).  
-Unzip the file (models.zip) and place the directory (models) in the /RNAref3D/RNAref3Dbp.  
+Unzip the file (models.zip) and place the directory (models) in the RNAref3D/RNAref3Dbp.  
   
 ## 1-3. Setup of refinement package
 Run make in the /RNAref3D directory to compile the program.
@@ -46,12 +46,12 @@ python RNAref3D/RNAref3Dbp/main.py --pdb [Path to the PDB file containing the ba
 example)   
 If you want to obtain the base-pair and base-stacking interactions, run the following command.  
 ```
-python RNArefiner/bin/bppredictor.py --pdb input.pdb  -o ./output
+python RNArefiner/bin/bppredictor.py --pdb ./input.pdb  -o ./output
 ```
   
 If you only want to predict base-stacking interactions from base-pair information, run the following command.  
 ```
-python RNArefiner/bin/bppredictor.py --pdb input.pdb  -o ./output -bp RNAref3D_bp.txt
+python RNArefiner/bin/bppredictor.py --pdb ./input.pdb  -o ./output -bp ./RNAref3D_bp.txt
 ```
 As a result, the files RNAref3D_bp.txt and RNAref3D_stack.txt are output to the directory specified by -o.
    
@@ -66,39 +66,19 @@ Here, base-paring and base-stacking interaction information must be inputted as 
 (Other options)  
 | Option | Description | Default |
 | :-------------: | :-------------: | :-------------: |
-| -libdir | Directory of user-defined template structures (All PDB files in the directory are loaded) | None |
-| -libwg | Weights of the template structures-based energy (-libdir must be specified) | 10 if -libdir is specified, otherwise None |
-| -libcwg | Weights of each template structure (-libdir must be specified) | 1/(template number) if -libdir is specified, otherwise None |
-| -time | Simulation time (hours) | 10 |
-
-The energy based on the user-defined template structures is calculated as follows.
-
+| -m | Refinement types (0-3) | 3 |
+| -mtime | MC-based refinement time [seconds] | 7200 |
+| -ltime | L-BFGS-based refinement time [seconds] | 3600 |
+| -verbose | Enables detailed logging. Log is written to output/directory/logs/output.log. | False |
+| -libdir | Directory of user-defined template structures (All PDB files in the directory are loaded, NOW NOT AVAILABLE) | None |
   
-$$
-E_{\text{template}} = w_{\text{template}} {\sum_{i=1}^{n} {u_{\text{template},i} E_{\text{template},i}}}
-$$    
-
-$$
-E_{\text{template}} \text{: Energy of the template structures}
-$$  
-$$
-w_{\text{template}} \text{: Weights of the template structures-based energy}
-$$  
-$$
-u_{\text{template},i} \text{: Weights of} i\text{th template structure}
-$$  
-$$
-E_{\text{template},i} \text{: Energy of} i\text{th template structure}
-$$  
-
-*In the energy calculation, the distance maps between the template structures and the refining structure.  
-*You can change the weights of template structures-based energy *w* by the option of "-libwg".  
-*If you want to set the weights of each template structure *u*, you need to specify the file with the following formats by the option of "-libcwg".  
-structure_1.pdb,Weight_1  
-structure_2.pdb,Weight_2  
-...  
-structure_N.pdb,Weight_N  
-
+The refinement type can be selected from the following options.
+| Mode | Description |
+| :-------------: | :-------------: |
+| 1 | Full atomic structure generation only |
+| 2 | MC-based refinement |
+| 3 | L-BFGS-based refinement |
+| 4 | MC-based refinement + L-BFGS-based refinement |
 
 
 

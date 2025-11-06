@@ -122,7 +122,9 @@ int main(int argc,char **argv)
     string stfile=args["-st"];
 
     double tolerance = 0.025;
-    int option = stoi(args["-refmode"]); 
+    int option = stoi(args["-m"]); 
+    double m_maxtime = stod(args["-mtime"]);
+    double e_maxtime = stod(args["-ltime"]);
 
     vector<FragmentStructure> templatestrall;
     vector<vector<vector<bool>>> templatestrallflag;
@@ -145,39 +147,20 @@ int main(int argc,char **argv)
     double alpha=0.4; 
     double beta=0.4;
 
-    if (option>0)
-    {
-        int stackseqst, stackseqend;
-        int bpseqst, bpseqend;
+    int stackseqst, stackseqend;
+    int bpseqst, bpseqend;
+    
+    bool bpflag = loadBP(bpfile, seq, chainstr2chainidx, pdbidx2seqidx, bp_vec, noncbp_vec, bpseqst, bpseqend);
+    if(!bpflag) exit(1);
         
-        bool bpflag = loadBP(bpfile, seq, chainstr2chainidx, pdbidx2seqidx, bp_vec, noncbp_vec, bpseqst, bpseqend);
-        if(!bpflag) exit(1);
-            
-        bool stflag = loadST(stfile, seq, chainstr2chainidx, pdbidx2seqidx, stack_vec, stackseqst, stackseqend);
-        if(!stflag) exit(1);
-            
-        bp_vec_unique = bp_vec;
-        //cssr(pdb_entry, res_str_vec, bp_vec);
-        filter_bp(bp_vec_unique);
-
-        /*
-        cout<<bp_vec.size()<<endl;
-        for (bp=0;bp<bp_vec.size();bp++){
-            cout<<bp_vec[bp].second[0] << "-" << bp_vec[bp].second[1] << "-" << bp_vec[bp].second[2] << "-" << bp_vec[bp].second[3] << "-" << bp_vec[bp].first << endl;
-        }
-
-        cout<<"============"<<endl;
-
-        cout<<bp_vec_unique.size()<<endl;
-        for (bp=0;bp<bp_vec_unique.size();bp++){
-            cout<<bp_vec_unique[bp].second[0] << "-" << bp_vec_unique[bp].second[1] << "-" << bp_vec_unique[bp].second[2] << "-" << bp_vec_unique[bp].second[3] << "-" << bp_vec_unique[bp].first << endl;
-        }
-        */
-
+    bool stflag = loadST(stfile, seq, chainstr2chainidx, pdbidx2seqidx, stack_vec, stackseqst, stackseqend);
+    if(!stflag) exit(1);
         
-        getsselement(pdb_entry, bp_vec_unique, stembps, loopnts, stemconnectnts, connectnts);
-        getstmap(stack_vec, stackmap, pdb_entry.chains[0].residues.size());
-    }
+    bp_vec_unique = bp_vec;
+    filter_bp(bp_vec_unique);
+    
+    getsselement(pdb_entry, bp_vec_unique, stembps, loopnts, stemconnectnts, connectnts);
+    getstmap(stack_vec, stackmap, pdb_entry.chains[0].residues.size());
 
     map<string, map<string, vector<ModelUnit>>> ideal_rna=parse_ideal_rna(paramdir);
 
@@ -224,51 +207,40 @@ int main(int argc,char **argv)
     */
 
     int iter=1;
-    if(option>2){
-        if(option > 2){
-            size_t c,r,a;
-            //size_t aStart=11;
-            //if (option == 6) aStart=0;
-            size_t aStart=0;
-            for (c=0; c<pdb_entry.chains.size(); c++)
-                for (r=0;r<pdb_entry.chains[c].residues.size();r++)
-                    for (a=aStart;a<pdb_entry.chains[c].residues[r].atoms.size();a++)
-                        pdb_entry.chains[c].residues[r].atoms[a].movable=1;
-        }
-
-        /*         
-        baseiclog.log("Non-energy-based refinement...\n");
-        auto start_ne = std::chrono::high_resolution_clock::now();
-        RefineRNA(pdb_entry,ideal_rna, bp_vec, bp_template_idx, nonbp_template_idx, alpha, beta, tolerance, outdir, logflag);
-        auto end_ne = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> elapsed_ne = end_ne - start_ne;
-        baseiclog.log("Processing time: " + to_string(elapsed_ne.count()) + " seconds\n");
-        //baseiclog.log("Saving to " +outdir+"/non_energy_"+to_string(iter)+".pdb\n\n");
-        //write_pdb_structure((outdir+"/non_energy_"+to_string(iter)+".pdb").c_str(),pdb_entry);
-        */ 
+    if(option>=1){
+        size_t c,r,a;
+        size_t aStart=0;
+        for (c=0; c<pdb_entry.chains.size(); c++)
+            for (r=0;r<pdb_entry.chains[c].residues.size();r++)
+                for (a=aStart;a<pdb_entry.chains[c].residues[r].atoms.size();a++)
+                    pdb_entry.chains[c].residues[r].atoms[a].movable=1;
         
         vector<vector<vector<double>>> hydrogencoords;
-        baseiclog.log("REMC-based refinement...\n");
-        baseiclog.log("MC refinement...\n");
-        double m_maxtime = 7200;
-        auto start_remc = std::chrono::high_resolution_clock::now();
-        final_energy=MonteCarloSimulationProcess(pdb_entry, paramdir+"/MC", bp_vec, loopnts, noncbp_vec, stemconnectnts, connectnts, stackmap, inputtedstrall, inputtedstrallflag, score_vec, templatestrall, templatestrallflag, extparameters, hydrogencoords, m_maxtime, outdir, logflag, option);
-        auto end_remc = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> elapsed_remc = end_remc - start_remc;
-        baseiclog.log("Processing time: " + to_string(elapsed_remc.count()) + " seconds, Final energy: " + to_string(final_energy) + "\n");
-        //baseiclog.log("Saving to " +outdir+"/mc_"+to_string(iter)+".pdb\n");
-        //write_pdb_structure((outdir+"/mc_"+to_string(iter)+".pdb").c_str(),pdb_entry);
+        if(option == 1 || option == 3){    
+            baseiclog.log("REMC-based refinement...\n");
+            baseiclog.log("MC refinement...\n");
+            //double m_maxtime = 7200;
+            auto start_remc = std::chrono::high_resolution_clock::now();
+            final_energy=MonteCarloSimulationProcess(pdb_entry, paramdir+"/MC", bp_vec, loopnts, noncbp_vec, stemconnectnts, connectnts, stackmap, inputtedstrall, inputtedstrallflag, score_vec, templatestrall, templatestrallflag, extparameters, hydrogencoords, m_maxtime, outdir, logflag, option);
+            auto end_remc = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<double> elapsed_remc = end_remc - start_remc;
+            baseiclog.log("Processing time: " + to_string(elapsed_remc.count()) + " seconds, Final energy: " + to_string(final_energy) + "\n");
+            //baseiclog.log("Saving to " +outdir+"/mc_"+to_string(iter)+".pdb\n");
+            //write_pdb_structure((outdir+"/mc_"+to_string(iter)+".pdb").c_str(),pdb_entry);
+        }
 
-        baseiclog.log("Energy-based refinement...\n");
-        double e_maxtime = 3600;
-        auto start_ene = std::chrono::high_resolution_clock::now();
-        StructureOptimization(pdb_entry, ideal_rna, inputtedstrall, inputtedstrallflag, templatestrall, templatestrallflag, bp_vec, loopnts, noncbp_vec, stemconnectnts, connectnts, stackmap, bpdistmap, stackdistmap, extparameters, hydrogencoords, e_maxtime, outdir, logflag, option);
-        auto end_ene = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> elapsed_ene = end_ene - start_ene;
-        baseiclog.log("Processing time: " + to_string(elapsed_ene.count()) + " seconds\n");
-        //baseiclog.log("Saving to " +outdir+"/lbfgs_"+to_string(iter)+".pdb\n\n");
-        //write_pdb_structure((outdir+"/lbfgs_"+to_string(iter)+".pdb").c_str(),pdb_entry);
-        //exit(1);
+        if(option == 2 || option == 3){
+            baseiclog.log("Energy-based refinement...\n");
+            //double e_maxtime = 3600;
+            auto start_ene = std::chrono::high_resolution_clock::now();
+            StructureOptimization(pdb_entry, ideal_rna, inputtedstrall, inputtedstrallflag, templatestrall, templatestrallflag, bp_vec, loopnts, noncbp_vec, stemconnectnts, connectnts, stackmap, bpdistmap, stackdistmap, extparameters, hydrogencoords, e_maxtime, outdir, logflag, option);
+            auto end_ene = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<double> elapsed_ene = end_ene - start_ene;
+            baseiclog.log("Processing time: " + to_string(elapsed_ene.count()) + " seconds\n");
+            //baseiclog.log("Saving to " +outdir+"/lbfgs_"+to_string(iter)+".pdb\n\n");
+            //write_pdb_structure((outdir+"/lbfgs_"+to_string(iter)+".pdb").c_str(),pdb_entry);
+            //exit(1);
+        }
     }
     
 

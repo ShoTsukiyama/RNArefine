@@ -226,10 +226,7 @@ if __name__ == "__main__":
     
     if(bppath is None):
         bb_bp, basepairmaps, processflag = predict_bp_from_backbonestr(dist_map, str_info, str_size, str_fe_1, str_fe_2, pdb_nts, pdb_nt_mask, seqidx2pdbidx, seqidx2nt, modelpath, chain_name, f"{outpath}")
-        
         output_int(bb_bp, f"{outpath}/RNAref3D_bp.txt")
-        
-        print("aaa")
     else:
         bb_bp = load_basepairs(bppath)
     

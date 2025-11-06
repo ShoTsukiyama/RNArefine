@@ -1463,7 +1463,7 @@ bool MonteCarloSimulation::checkhbond(Point3s* teAtomHyd, Point3s* teAtomDon, Po
 	//cout<<angle << "-" << length13 << "-" << (length13 <= 4.5)<<endl;
 
 	//return ((angle >= 95) && (length13 <= 4.5));
-	return (length13 <= 4.5);
+	return (length13 <= 4.0);
 }
 
 void MonteCarloSimulation::setpairwiseeneobj(const ExtParams &extparameters, const FragmentStructure &inputtedstrall, const vector<vector<bool>> &inputtedstrallflag, const vector<FragmentStructure> &templatestrall, const vector<vector<vector<bool>>> &templatestrallflag){

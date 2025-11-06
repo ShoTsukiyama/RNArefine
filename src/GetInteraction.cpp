@@ -1633,7 +1633,7 @@ bool loadBP(string bppath, string seq, map<string, int> &chainstr2chainidx, map<
             pair<double,vector<size_t>> bp_vec_temp;
             bool canonicaflag=false;
             if(idx1 < idx2){
-                bp_vec_temp.first = exp01(sc, 100.0);
+                bp_vec_temp.first = exp01(sc, 10.0);
                 bp_vec_temp.second.resize(5, 0.0);
 
                 bp_vec_temp.second[0] = chain1idx;
@@ -1661,7 +1661,7 @@ bool loadBP(string bppath, string seq, map<string, int> &chainstr2chainidx, map<
                     //cout<<bp_vec_temp.second[1] << "-" << bp_vec_temp.second[3]<<endl;
                 //}
             }else{
-                bp_vec_temp.first = exp01(sc, 100.0);
+                bp_vec_temp.first = exp01(sc, 10.0);
                 bp_vec_temp.second.resize(5, 0.0);
 
                 bp_vec_temp.second[0] = chain2idx;

@@ -116,7 +116,6 @@ map<string, vector<ModelUnit>> loadtemplatestrs(string basepath, vector<string> 
             map<int, map<int, int>> pdbidx2seqidx;
             map<string, int> chainstr2chainidx;
             template_rna[subdirs[i]][j] = read_pdb_structure(strs[j].c_str(), chainstr2chainidx, pdbidx2seqidx, 2, 0);
-
             standardize_atom_order(template_rna[subdirs[i]][j]);
         }
     }

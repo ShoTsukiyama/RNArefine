@@ -209,9 +209,9 @@ void AttachHydrogen(FragmentStructure &stru, const vector<vector<vector<double>>
         base = stru.residues[i].restype;
         if(stru.residues[i].atoms.size() == all_atom_num[base]) continue;
         for(int j=0;j<hydparamidx.at(base).size();j++){
-            tor = hydparam.at(base).at(j)[0];
-            ang = hydparam.at(base).at(j)[2];
-            leng = hydparam.at(base).at(j)[4];
+            //tor = hydparam.at(base).at(j)[0];
+            //ang = hydparam.at(base).at(j)[2];
+            //leng = hydparam.at(base).at(j)[4];
 
             atom1 = hydparamidx.at(base).at(j)[0];
             atom2 = hydparamidx.at(base).at(j)[1];
@@ -219,10 +219,10 @@ void AttachHydrogen(FragmentStructure &stru, const vector<vector<vector<double>>
             atom4 = hydparamidx.at(base).at(j)[3];
 
             FragmentAtoms hydatom;
-            flagts=tor2pos22(stru.residues[i].atoms[atom1].coord.x,stru.residues[i].atoms[atom1].coord.y,stru.residues[i].atoms[atom1].coord.z,
-                             stru.residues[i].atoms[atom2].coord.x,stru.residues[i].atoms[atom2].coord.y,stru.residues[i].atoms[atom2].coord.z,
-                             stru.residues[i].atoms[atom3].coord.x,stru.residues[i].atoms[atom3].coord.y,stru.residues[i].atoms[atom3].coord.z,
-                             tor*RADDEG,leng,ang*RADDEG,&hydatom.coord.x,&hydatom.coord.y,&hydatom.coord.z);
+            //flagts=tor2pos22(stru.residues[i].atoms[atom1].coord.x,stru.residues[i].atoms[atom1].coord.y,stru.residues[i].atoms[atom1].coord.z,
+                             //stru.residues[i].atoms[atom2].coord.x,stru.residues[i].atoms[atom2].coord.y,stru.residues[i].atoms[atom2].coord.z,
+                             //stru.residues[i].atoms[atom3].coord.x,stru.residues[i].atoms[atom3].coord.y,stru.residues[i].atoms[atom3].coord.z,
+                             //tor*RADDEG,leng,ang*RADDEG,&hydatom.coord.x,&hydatom.coord.y,&hydatom.coord.z);
 
             //cout<<hydatom.coord.x << "-" << hydatom.coord.y << "-" << hydatom.coord.z<<endl;
 

@@ -6,7 +6,13 @@ const string docstring=""
 "./RNAref3D global -i [path of input PDB (required)] -o [output directory (required)] -bp [path of base pairing information (required)] -st [path of stacking information (required)] [other options]\n"
 "./RNAref3D local -i [path of input PDB (required)] -o [output directory (required)] -strlib [Directory of template and fragment structures] -distlib [Directory of distance maps] -contlib [Directory of contact maps] -bplib [Directory of base pairing information] -stacklib [Directory of stacking information]\n"
 "[other options]\n"
-"-refmode: Refinement mode (local refinement only)\n"
+"-m: Refinement mode (default: 3)\n"
+"   1: Full atomic structure generation only\n"
+"   2: MC-based refinement\n"
+"   3: L-BFGS-based refinement\n"
+"   4: MC-based refinement + L-BFGS-based refinement\n"
+"-mtime: MC-based refinement time [seconds] (default: 7200)\n"
+"-ltime: L-BFGS-based refinement time [seconds] (default: 3600)\n"
 "-verbose: Enables detailed logging. Log is written to output/directory/logs/output.log.\n";
 
 void parseArgs(int argc, char* argv[], unordered_map<string, string> &args) {
@@ -26,9 +32,9 @@ void parseArgs(int argc, char* argv[], unordered_map<string, string> &args) {
         }
 
         if(arg == "-verbose") args["-verbose"]="t";
-        else if(arg == "-i" || arg == "-o" || arg == "-bp" || arg == "-st" || arg == "-refmode"){
+        else if(arg == "-i" || arg == "-o" || arg == "-bp" || arg == "-st" || arg == "-m" || arg == "-mtime" || arg == "-ltime"){
             if (i + 1 < argc) {
-                if(string(argv[i + 1]) == "-i" || string(argv[i + 1]) == "-o" || string(argv[i + 1]) == "-bp" || string(argv[i + 1]) == "-st" || string(argv[i + 1]) == "-refmode"){
+                if(string(argv[i + 1]) == "-i" || string(argv[i + 1]) == "-o" || string(argv[i + 1]) == "-bp" || string(argv[i + 1]) == "-st" || string(argv[i + 1]) == "-m" || string(argv[i + 1]) == "-mtime" || string(argv[i + 1]) == "-ltime"){
                     cerr<< "Error:" << arg << " is not specified"<<endl;
                     exit(1);
                 }else{
@@ -73,13 +79,48 @@ void parseArgs(int argc, char* argv[], unordered_map<string, string> &args) {
         exit(1);
     }
 
-    if(args.find("-refmode") == args.end()){
-        args["-refmode"]="111";
-        if(args["-refmode"].size() != 3){
-            cerr << "Error: Specify a 3-digit for refmode\n" <<endl;
+    if(args.find("-m") == args.end()){
+        args["-m"]="3";
+    }else{
+        try {
+            size_t opt;
+            stoi(args["-m"], &opt);
+            if(opt < 0 || opt > 3){
+                cerr << "Error: Specify a integer value (0-3) for the refinement mode\n" <<endl;
+                exit(1);
+            }
+        }catch (...) {
+            cerr << "Error: Specify a integer value (0-3) for the refinement mode\n" <<endl;
             exit(1);
         }
     }
+
+    if(args.find("-mtime") == args.end())
+    {
+        args["-mtime"]="7200";
+    }else{
+        try {
+            size_t opt;
+            stod(args["-mtime"], &opt);
+        }catch (...) {
+            cerr << "MC-based refinement time must be a double or integer value\n" <<endl;
+            exit(1);
+        }
+    }
+
+    if(args.find("-ltime") == args.end())
+    {
+        args["-ltime"]="3600";
+    }else{
+        try {
+            size_t opt;
+            stod(args["-ltime"], &opt);
+        }catch (...) {
+            cerr << "L-BFGS-based refinement time must be a double or integer value\n" <<endl;
+            exit(1);
+        }
+    }
+
     //}
     
     /*

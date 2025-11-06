@@ -532,6 +532,7 @@ void setbasepairobj(FragmentStructure &stru, vector<vector<Point3s>> &gradient, 
                 bpobj.push_back(bpobjone);
             }
 
+            /*
             if(noncbpmap[i][j] > 0){
                 AtomPtrs.clear();
                 Atomgrad.clear();
@@ -555,6 +556,7 @@ void setbasepairobj(FragmentStructure &stru, vector<vector<Point3s>> &gradient, 
                 BasePairobj bpobjone(AtomPtrs, Atomgrad, noncbpmap[i][j]);
                 bpobj.push_back(bpobjone);
             }
+            */
         }
 
         /*
@@ -2689,7 +2691,7 @@ bool checkhbond2(Point3s* teAtomHyd1, Point3s* teAtomHyd2, Point3s* teAtomDon, P
 	//cout<<angle << "-" << length13 << "-" << (length13 <= 4.5)<<endl;
 
 	//return ((angle >= 95) && (length13 <= 4.5));
-	return (length13 <= 4.0);
+	return (length13 <= 4.5);
 }
 
 bool checkhbond(Point3s* teAtomHyd, Point3s* teAtomDon, Point3s* teAtomAcc)
@@ -3484,7 +3486,7 @@ void fragmentoptimization(
     
     //map<string, double> enecoeff={{"length", 500}, {"angle",160}, {"hydtor", 0}, {"dihedral", 0}, {"init", 0}, {"initdist", 0.5}, {"templatedist", 0.5}, {"improper", 0}, {"electros", 1.0}, {"LJ", 1.0}, {"HBond", 20.0}, {"BP", 1.0}, {"Stack", 2.0}, {"StackGeo", 5.0}, {"Clash", 5.0}, {"Nt", 5.0}, {"BPdist", 0.0}, {"BasePlane", 5.0}}; 
     //map<string, double> enecoeff={{"length", 400}, {"angle",120}, {"hydtor", 0}, {"dihedral", 0}, {"init", 0}, {"initdist", 0.5}, {"templatedist", 0.5}, {"improper", 0}, {"electros", 1.0}, {"LJ", 1.0}, {"HBond", 20.0}, {"BP", 0.0}, {"Stack", 0.5}, {"StackGeo", 0.0}, {"Clash", 5.0}, {"Nt", 0.0}, {"BPdist", 0.0}, {"BasePlane", 5.0}}; 
-    map<string, double> enecoeff={{"length", 400}, {"angle",120}, {"hydtor", 0}, {"dihedral", 0}, {"init", 0}, {"initdist", 0.5}, {"templatedist", 0.5}, {"improper", 0}, {"electros", 1.0}, {"LJ", 1.0}, {"HBond", 10.0}, {"BP", 0.0}, {"Stack", 0.5}, {"StackGeo", 0.0}, {"Clash", 5.0}, {"Nt", 0.5}, {"BPdist", 0.0}, {"BasePlane", 1.0}}; 
+    map<string, double> enecoeff={{"length", 400}, {"angle",120}, {"hydtor", 0}, {"dihedral", 0}, {"init", 0}, {"initdist", 0.5}, {"templatedist", 0.5}, {"improper", 0}, {"electros", 1.0}, {"LJ", 1.0}, {"HBond", 10.0}, {"BP", 1.0}, {"Stack", 0.5}, {"StackGeo", 0.0}, {"Clash", 5.0}, {"Nt", 0.5}, {"BPdist", 0.0}, {"BasePlane", 1.0}}; 
 
     //FragmentStructure superimposedstr;
     int istart, iend;

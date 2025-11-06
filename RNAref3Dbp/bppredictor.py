@@ -81,6 +81,14 @@ def save_pickle(filename, data):
         pickle.dump(data, f)
         
 def apply_canonical_condition(_X):
+    """_summary_
+
+    Args:
+        _X (n,n): Base-pair probabilities
+
+    Returns:
+        optimal_X: Binary matrix satisfied secondary structure conditions
+    """
     n = _X.shape[0]
     solver_name = "SCIP"
     A = _X

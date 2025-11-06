@@ -1198,6 +1198,7 @@ void MonteCarloSimulation::MCsetbasepairobj(vector<vector<Point3s>> &gradient, c
         //}
     }
 
+    /*
     for(int i=0;i<noncbasepairlist.size();i++){
         res1=noncbasepairlist[i][0];
         res2=noncbasepairlist[i][1];
@@ -1231,6 +1232,7 @@ void MonteCarloSimulation::MCsetbasepairobj(vector<vector<Point3s>> &gradient, c
 
         count+=1;
     }
+    */
 
 }
 
@@ -2317,7 +2319,7 @@ void MonteCarloSimulation::MCfragmentoptimization(
 
     //map<string, double> enecoeff={{"length", 400}, {"angle",120}, {"hydtor", 0}, {"dihedral", 0}, {"init", 0}, {"init_dist", 1.0}, {"template_dist", 1.0}, {"improper", 0}, {"electros", 1.0}, {"LJ", 1.0}, {"HBond", 20.0}, {"BP", 1.0}, {"BPdist", 0.0}, {"Stack", 2.0}, {"StackGeo", 5.0}, {"Clash", 5.0}, {"Nt", 5.0}, {"BasePlane", 5.0}};
     //map<string, double> enecoeff={{"length", 400}, {"angle",120}, {"hydtor", 0}, {"dihedral", 0}, {"init", 0}, {"init_dist", 0.5}, {"template_dist", 0.5}, {"improper", 0}, {"electros", 1.0}, {"LJ", 1.0}, {"HBond", 20.0}, {"BP", 0.0}, {"BPdist", 0.0}, {"Stack", 0.5}, {"StackGeo", 0.0}, {"Clash", 5.0}, {"Nt", 0.0}, {"BasePlane", 5.0}};
-    map<string, double> enecoeff={{"length", 400}, {"angle",120}, {"hydtor", 0}, {"dihedral", 0}, {"init", 0}, {"init_dist", 0.5}, {"template_dist", 0.5}, {"improper", 0}, {"electros", 1.0}, {"LJ", 1.0}, {"HBond", 10.0}, {"BP", 0.0}, {"BPdist", 0.0}, {"Stack", 0.5}, {"StackGeo", 0.0}, {"Clash", 5.0}, {"Nt", 0.5}, {"BasePlane", 1.0}};
+    map<string, double> enecoeff={{"length", 400}, {"angle",120}, {"hydtor", 0}, {"dihedral", 0}, {"init", 0}, {"init_dist", 0.5}, {"template_dist", 0.5}, {"improper", 0}, {"electros", 1.0}, {"LJ", 1.0}, {"HBond", 10.0}, {"BP", 1.0}, {"BPdist", 0.0}, {"Stack", 0.5}, {"StackGeo", 0.0}, {"Clash", 5.0}, {"Nt", 0.5}, {"BasePlane", 1.0}};
 
     //optimization
     vector<vector<Point3s>> gradptv;

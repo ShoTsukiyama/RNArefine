@@ -624,16 +624,23 @@ void Hbondobj::calcgradienthbond() const
 	if     (dcosangle >  1.) dcosangle =  1.;
   	else if(dcosangle < -1.) dcosangle = -1.;
 
-	bool angle_active = (dcosangle >= idealahdang);
-	if (!angle_active) dcosangle = -1.0;
+	//bool angle_active = (dcosangle >= idealahdang);
+	//if (!angle_active) dcosangle = -1.0;
+
+	double dcosangle_diff = dcosangle - idealahdang;
+    double dcosangle_diff_sq = dcosangle_diff * dcosangle_diff;
 
 	double idealahdiff = length23-idealahleng;
 	double idealaddiff = length13-idealadleng;
 
-	double denergydepth = -dK*exp(-dXiR * (idealahdiff*idealahdiff + idealaddiff*idealaddiff) - dXiTheta*dcosangle);
+	double denergydepth = -dK*exp(-dXiR * (idealahdiff*idealahdiff + idealaddiff*idealaddiff) - dXiTheta*dcosangle_diff_sq + dREq);
 
-	double coeff1 = angle_active ? ( -dXiTheta/length21 ) : 0.0;
-	double coeff2 = angle_active ? ( -dXiTheta/length23 ) : 0.0;
+	const double angle_term_deriv = -dXiTheta * 2.0 * dcosangle_diff;
+
+	//double coeff1 = angle_active ? ( -dXiTheta/length21 ) : 0.0;
+	double coeff1 = angle_term_deriv / (length21 + 1e-8);
+	//double coeff2 = angle_active ? ( -dXiTheta/length23 ) : 0.0;
+	double coeff2 = angle_term_deriv / (length23 + 1e-8);
 	double coeff3 = innerprot-1.0;
 	double coeff4 = -2.*dXiR;
 
@@ -675,7 +682,7 @@ void Hbondobj::calcgradienthbond() const
 
 double Hbondobj::calcenergyhbond() const
 {
-	Point3s vec21, vec23, vec13, grad1, grad2, grad3, gradsum;
+	Point3s vec21, vec23, vec13;
 
 	vec21.x = teAtomDon->x - teAtomHyd->x;
 	vec21.y = teAtomDon->y - teAtomHyd->y;
@@ -702,14 +709,17 @@ double Hbondobj::calcenergyhbond() const
 	if     (dcosangle >  1.) dcosangle =  1.;
   	else if(dcosangle < -1.) dcosangle = -1.;
 
-	if(dcosangle < idealahdang) dcosangle = -1;
+	//if(dcosangle < idealahdang) dcosangle = -1;
+
+	double dcosangle_diff = dcosangle - idealahdang;
+    double dcosangle_diff_sq = dcosangle_diff * dcosangle_diff;
 
 	double idealahdiff = length23-idealahleng;
 	double idealaddiff = length13-idealadleng;
 
 	//cout<<-dK*exp(-dXiR * (idealahdiff*idealahdiff + idealaddiff*idealaddiff) + dXiTheta*dcosangle)<<endl;
 
-	return -dK*exp(-dXiR * (idealahdiff*idealahdiff + idealaddiff*idealaddiff) - dXiTheta*dcosangle);
+	return -dK*exp(-dXiR * (idealahdiff*idealahdiff + idealaddiff*idealaddiff) - dXiTheta*dcosangle_diff_sq + dREq);
 }
 
 void Hbond2hydobj::calcgradienthbond() const
@@ -767,16 +777,24 @@ void Hbond2hydobj::calcgradienthbond() const
 	if     (dcosangle >  1.) dcosangle =  1.;
   	else if(dcosangle < -1.) dcosangle = -1.;
 
-	bool angle_active = (dcosangle >= idealahdang);
-	if (!angle_active) dcosangle = -1.0;
+	//bool angle_active = (dcosangle >= idealahdang);
+	//if (!angle_active) dcosangle = -1.0;
+
+	double dcosangle_diff = dcosangle - idealahdang;
+    double dcosangle_diff_sq = dcosangle_diff * dcosangle_diff;
+
 
 	double idealahdiff = length23-idealahleng;
 	double idealaddiff = length13-idealadleng;
 
-	double denergydepth = -dK*exp(-dXiR * (idealahdiff*idealahdiff + idealaddiff*idealaddiff) - dXiTheta*dcosangle);
+	double denergydepth = -dK*exp(-dXiR * (idealahdiff*idealahdiff + idealaddiff*idealaddiff) - dXiTheta*dcosangle_diff_sq + dREq);
 
-	double coeff1 = angle_active ? ( -dXiTheta/(length21 + 1e-8) ) : 0.0;
-	double coeff2 = angle_active ? ( -dXiTheta/(length23 + 1e-8) ) : 0.0;
+	const double angle_term_deriv = -dXiTheta * 2.0 * dcosangle_diff;
+
+	//double coeff1 = angle_active ? ( -dXiTheta/(length21 + 1e-8) ) : 0.0;
+	double coeff1 = angle_term_deriv / (length21 + 1e-8);
+	//double coeff2 = angle_active ? ( -dXiTheta/(length23 + 1e-8) ) : 0.0;
+	double coeff2 = angle_term_deriv / (length23 + 1e-8);
 	double coeff3 = innerprot-1.0;
 	double coeff4 = -2.*dXiR;
 
@@ -821,7 +839,7 @@ void Hbond2hydobj::calcgradienthbond() const
 
 double Hbond2hydobj::calcenergyhbond() const
 {
-	Point3s vec23_1, vec23_2, vec23, vec13, vec21, grad1, grad2, grad3, gradsum;
+	Point3s vec23_1, vec23_2, vec23, vec13, vec21;
 
 	vec23_1.x = teAtomAcc->x - teAtomHyd1->x;
 	vec23_1.y = teAtomAcc->y - teAtomHyd1->y;
@@ -874,15 +892,18 @@ double Hbond2hydobj::calcenergyhbond() const
 	if     (dcosangle >  1.) dcosangle =  1.;
   	else if(dcosangle < -1.) dcosangle = -1.;
 
-	bool angle_active = (dcosangle >= idealahdang);
-	if (!angle_active) dcosangle = -1.0;
+	//bool angle_active = (dcosangle >= idealahdang);
+	//if (!angle_active) dcosangle = -1.0;
+
+	double dcosangle_diff = dcosangle - idealahdang;
+    double dcosangle_diff_sq = dcosangle_diff * dcosangle_diff;
 
 	double idealahdiff = length23-idealahleng;
 	double idealaddiff = length13-idealadleng;
 
 	//cout<<-dK*exp((-dXiR * (idealahdiff*idealahdiff + idealaddiff*idealaddiff) + dXiTheta*dcosangle))<<endl;
 
-	return -dK*exp((-dXiR * (idealahdiff*idealahdiff + idealaddiff*idealaddiff) - dXiTheta*dcosangle));
+	return -dK*exp((-dXiR * (idealahdiff*idealahdiff + idealaddiff*idealaddiff) - dXiTheta*dcosangle_diff_sq + dREq));
 }
 
 /*

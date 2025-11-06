@@ -110,7 +110,7 @@ size_t countUniqAtom(vector<vector<double> >&xyz_list2)
 bool AssembleBasePairFrag(const int c1, const int r1, const int c2, const int r2, 
     const ModelUnit &pdb_entry, map<string, vector<ModelUnit>> &ideal_rna,
     FragmentResidue &spresidue1, FragmentResidue &spresidue2, 
-    int templateidx)
+    int &templateidx)
 {
     int i;
     vector<double> tmp(3,0);
@@ -220,7 +220,8 @@ bool AssembleBasePairFrag(const int c1, const int r1, const int c2, const int r2
             a++;
         }
 
-        if(i == 0){
+        if(i == 0)
+        {
             atomNum=countUniqAtom(xyz_list2);
 
             if (atomNum<xyz_list2.size())
@@ -784,257 +785,260 @@ bool MissingRNAatom(ModelUnit &pdb_entry, const size_t c,
     size_t a;
     vector<bool> updateflag(pdb_entry.chains[c].residues.size(), false);
 
-    if(option > 0){
-        if(missing_atom_num){
-            cout<<"Number of missing atoms: "<< missing_atom_num<<endl;
-            /*
-            if(option == 1)
-            {
-                for (r=0;r<pdb_entry.chains[c].residues.size();r++)
-                {
-                    fill_chain.residues.push_back(fill_residue);
-                    if (fill_residue_map.count(r)==0) continue;
-                    for (a=0;a<fill_residue_map[r].size();a++)
-                    {
-                        fill_chain.residues[r].atoms.push_back(fill_atom);
-                        fill_chain.residues[r].atoms[a].name=fill_residue_map[r][a];
-                        fill_chain.residues[r].atoms[a].xyz.assign(3,0);
-                        fill_chain.residues[r].atoms[a].movable=1;
-                        fill_chain.residues[r].atoms[a].input=1;
-                    }
-                }
-                fullatom=false;
-            }else if(option == 2)
-            {   
-            */ 
+    
+    if(missing_atom_num){
+        cout<<"Number of missing atoms: "<< missing_atom_num<<endl;
+        /*
+        if(option == 1)
+        {
             for (r=0;r<pdb_entry.chains[c].residues.size();r++)
             {
                 fill_chain.residues.push_back(fill_residue);
-
-                for (a=0;a<pdb_entry.chains[c].residues[r].atoms.size();a++)
+                if (fill_residue_map.count(r)==0) continue;
+                for (a=0;a<fill_residue_map[r].size();a++)
                 {
                     fill_chain.residues[r].atoms.push_back(fill_atom);
-                    fill_chain.residues[r].atoms[a].name=pdb_entry.chains[c].residues[r].atoms[a].name;
-                    fill_chain.residues[r].atoms[a].xyz.assign(3,0);
-                    fill_chain.residues[r].atoms[a].movable=0;
-                    fill_chain.residues[r].atoms[a].input=1;
-                }
-                i=0;
-                for (a=pdb_entry.chains[c].residues[r].atoms.size();a<pdb_entry.chains[c].residues[r].atoms.size()+fill_residue_map[r].size();a++)
-                {
-                    fill_chain.residues[r].atoms.push_back(fill_atom);
-                    fill_chain.residues[r].atoms[a].name=fill_residue_map[r][i];
+                    fill_chain.residues[r].atoms[a].name=fill_residue_map[r][a];
                     fill_chain.residues[r].atoms[a].xyz.assign(3,0);
                     fill_chain.residues[r].atoms[a].movable=1;
-                    fill_chain.residues[r].atoms[a].input=0;
-                    i+=1;
+                    fill_chain.residues[r].atoms[a].input=1;
                 }
             }
-            fullatom=true;
+            fullatom=false;
+        }else if(option == 2)
+        {   
+        */ 
+        for (r=0;r<pdb_entry.chains[c].residues.size();r++)
+        {
+            fill_chain.residues.push_back(fill_residue);
+
+            for (a=0;a<pdb_entry.chains[c].residues[r].atoms.size();a++)
+            {
+                fill_chain.residues[r].atoms.push_back(fill_atom);
+                fill_chain.residues[r].atoms[a].name=pdb_entry.chains[c].residues[r].atoms[a].name;
+                fill_chain.residues[r].atoms[a].xyz.assign(3,0);
+                fill_chain.residues[r].atoms[a].movable=0;
+                fill_chain.residues[r].atoms[a].input=1;
+            }
+            i=0;
+            for (a=pdb_entry.chains[c].residues[r].atoms.size();a<pdb_entry.chains[c].residues[r].atoms.size()+fill_residue_map[r].size();a++)
+            {
+                fill_chain.residues[r].atoms.push_back(fill_atom);
+                fill_chain.residues[r].atoms[a].name=fill_residue_map[r][i];
+                fill_chain.residues[r].atoms[a].xyz.assign(3,0);
+                fill_chain.residues[r].atoms[a].movable=1;
+                fill_chain.residues[r].atoms[a].input=0;
+                i+=1;
+            }
+        }
+        fullatom=true;
+        //}
+
+        //map<string, int> resnorder={{"  A  U", 0}, {"  U  A", 1}, {"  G  C", 0}, {"  C  G", 1}, {"  G  U", 0}, {"  U  G", 1}};
+        double startene, endene;
+
+        GetInitStr(c, pdb_entry, inputtedstrall, inputtedstrallflag);
+
+        for (i=0;i<stembps.size();i++)
+        {
+            FragmentStructure superimposedstr;
+            FragmentStructure inputtedstr;
+            vector<vector<bool>> inputtedstrflag;
+            int edgeleft_r = stembps[i][0][1];
+            int bp_len = stembps[i].size();
+            int bpnt_len = bp_len*2;
+            vector<vector<int>> bindmap(bpnt_len, vector<int>(bpnt_len, 0));
+            vector<bool> moveresidues(bpnt_len, false);
+
+            int edgeright_r = stembps[i][bp_len-1][3];
+
+            superimposedstr.residues.resize(bpnt_len);
+            inputtedstr.residues.resize(bpnt_len);
+            inputtedstrflag.resize(bpnt_len);
+
+            for (j=0;j<stembps[i].size();j++)
+            {
+                c1= stembps[i][j][0];
+                r1= stembps[i][j][1];
+                c2= stembps[i][j][2];
+                r2= stembps[i][j][3];
+
+                AssembleBasePairFrag(c1,r1,c2,r2, pdb_entry, ideal_rna["bp"], superimposedstr.residues[r1-edgeleft_r], superimposedstr.residues[r2-edgeright_r+bp_len], templateidx);
+                
+                //cout<<r1 << "-" << r2 <<"-" << templateidx<<endl;
+                
+                inputtedstr.residues[r1-edgeleft_r] = inputtedstrall.residues[r1];
+                inputtedstrflag[r1-edgeleft_r] = inputtedstrallflag[r1];
+                inputtedstr.residues[r2-edgeright_r+bp_len] = inputtedstrall.residues[r2];
+                inputtedstrflag[r2-edgeright_r+bp_len] = inputtedstrallflag[r2];
+
+                //bp_template_idx[bp]=templateidx;
+
+                moveresidues[r1-edgeleft_r] = true;
+                moveresidues[r2-edgeright_r+bp_len] = true;
+
+                bindmap[r1-edgeleft_r][r2-edgeright_r+bp_len]=2;
+                bindmap[r2-edgeright_r+bp_len][r1-edgeleft_r]=2;
+
+                if(j != bp_len-1)
+                {
+                    bindmap[j][j+1]=1;
+                    bindmap[bp_len+j][bp_len+j+1]=1;
+                }
+            }
+            
+            //if(option > 1){
+                //AttachHydrogen(superimposedstr, extparameters.hydparam, extparameters.hydparamidx);
+                
+                //fragmentoptimizationbp(superimposedstr, inputtedstr, inputtedstrflag, bp_len, startene, endene, extparameters, bindmap, stackmap, moveresidues, 5000);
+                //cout<<"Fragment optimization is finished (stem " << i+1 << "), " << "starting energy: " << startene << ", final energy: " << endene<<endl;
+                
+                //RemoveHydrogens(superimposedstr);
             //}
 
-            //map<string, int> resnorder={{"  A  U", 0}, {"  U  A", 1}, {"  G  C", 0}, {"  C  G", 1}, {"  G  U", 0}, {"  U  G", 1}};
-            double startene, endene;
-
-            GetInitStr(c, pdb_entry, inputtedstrall, inputtedstrallflag);
-
-            for (i=0;i<stembps.size();i++)
+            for (j=0;j<stembps[i].size();j++)
             {
+                c1= stembps[i][j][0];
+                r1= stembps[i][j][1];
+                c2= stembps[i][j][2];
+                r2= stembps[i][j][3];
+
+                if(c == c1) updateflag[r1]=true;
+                if(c == c2) updateflag[r2]=true;
+
+                UpdateStemStructure(c1, r1, c2, r2, pdb_entry, fill_chain, fill_residue_map[r1], fill_residue_map[r2], superimposedstr.residues[r1-edgeleft_r], superimposedstr.residues[r2-edgeright_r+bp_len], fullatom);
+            }
+        }
+
+        AddMissingAtoms(pdb_entry, c, fill_chain, fill_residue_map, updateflag, 2);
+
+        updateflag.clear();
+        updateflag.resize(pdb_entry.chains[c].residues.size(), false);
+
+        for (auto& it : loopnts)
+        {
+            c1=it.first;
+            for(i=0;i<it.second.size();i++){
+                int edgeleft_r = it.second[i].first;
+                int edgeright_r = it.second[i].second;
+
+                int outedge_left_r = connectnts.at(c1)[i][0][0];
+                int outedge_left_c = connectnts.at(c1)[i][0][2];
+                int outedge_left_pair_r = connectnts.at(c1)[i][0][1];
+                int outedge_left_pair_c = connectnts.at(c1)[i][0][3];
+                int pairtype_left = connectnts.at(c1)[i][0][4];
+
+                int outedge_right_r = connectnts.at(c1)[i][1][0];
+                int outedge_right_c = connectnts.at(c1)[i][1][2];
+                int outedge_right_pair_r = connectnts.at(c1)[i][1][1];
+                int outedge_right_pair_c = connectnts.at(c1)[i][1][3];
+                int pairtype_right = connectnts.at(c1)[i][1][4];
+
+                int addres=0;
+                int addres_f=0;
+                int addres_e=0;
+
+                if(pairtype_left == 2){
+                    addres_f+=1;
+                    addres_e+=1;
+                }else if(pairtype_left == 1 && pairtype_right == 1){
+                    addres_f+=2;
+                    addres_e+=2;
+                }else if(pairtype_left == 1){
+                    addres_f+=2;
+                }else if(pairtype_right == 1){
+                    addres_e+=2;
+                }
+                addres = addres_f+addres_e;
+
                 FragmentStructure superimposedstr;
                 FragmentStructure inputtedstr;
                 vector<vector<bool>> inputtedstrflag;
-                int edgeleft_r = stembps[i][0][1];
-                int bp_len = stembps[i].size();
-                int bpnt_len = bp_len*2;
-                vector<vector<int>> bindmap(bpnt_len, vector<int>(bpnt_len, 0));
-                vector<bool> moveresidues(bpnt_len, false);
+                int loop_len = edgeright_r-edgeleft_r+1+addres;
 
-                int edgeright_r = stembps[i][bp_len-1][3];
+                vector<vector<int>> bindmap(loop_len, vector<int>(loop_len, 0));
+                vector<bool> moveresidues(loop_len, false);
+                superimposedstr.residues.resize(loop_len);
+                inputtedstr.residues.resize(loop_len);
+                inputtedstrflag.resize(loop_len);
 
-                superimposedstr.residues.resize(bpnt_len);
-                inputtedstr.residues.resize(bpnt_len);
-                inputtedstrflag.resize(bpnt_len);
-
-                for (j=0;j<stembps[i].size();j++)
+                if(pairtype_left == 2)
                 {
-                    c1= stembps[i][j][0];
-                    r1= stembps[i][j][1];
-                    c2= stembps[i][j][2];
-                    r2= stembps[i][j][3];
-                    AssembleBasePairFrag(c1,r1,c2,r2, pdb_entry, ideal_rna["bp"], superimposedstr.residues[r1-edgeleft_r], superimposedstr.residues[r2-edgeright_r+bp_len], templateidx);
-                    inputtedstr.residues[r1-edgeleft_r] = inputtedstrall.residues[r1];
-                    inputtedstrflag[r1-edgeleft_r] = inputtedstrallflag[r1];
-                    inputtedstr.residues[r2-edgeright_r+bp_len] = inputtedstrall.residues[r2];
-                    inputtedstrflag[r2-edgeright_r+bp_len] = inputtedstrallflag[r2];
+                    ExtractNt(c1, outedge_left_r, pdb_entry, superimposedstr.residues[0]);
+                    inputtedstr.residues[0] = inputtedstrall.residues[outedge_left_r];
+                    inputtedstrflag[0] = inputtedstrallflag[outedge_left_r];
+                
+                    ExtractNt(c1, outedge_left_pair_r, pdb_entry, superimposedstr.residues[loop_len-1]);
+                    inputtedstr.residues[loop_len-1] = inputtedstrall.residues[outedge_left_pair_r];
+                    inputtedstrflag[loop_len-1] = inputtedstrallflag[outedge_left_pair_r];
+                    
+                    bindmap[0][loop_len-1] = 2;
+                    bindmap[loop_len-1][0] = 2;
+                    bindmap[0][1] = 1;
+                }else if(pairtype_left == 1)
+                {
+                    ExtractNt(outedge_left_pair_c, outedge_left_pair_r, pdb_entry, superimposedstr.residues[0]);
+                    inputtedstr.residues[0] = inputtedstrall.residues[outedge_left_pair_r];
+                    inputtedstrflag[0] = inputtedstrallflag[outedge_left_pair_r];
 
-                    //bp_template_idx[bp]=templateidx;
+                    ExtractNt(outedge_left_c, outedge_left_r, pdb_entry, superimposedstr.residues[1]);
+                    inputtedstr.residues[1] = inputtedstrall.residues[outedge_left_r];
+                    inputtedstrflag[1] = inputtedstrallflag[outedge_left_r];
+                    
+                    bindmap[0][1] = 2;
+                    bindmap[1][0] = 2;
+                    bindmap[1][2] = 1;
+                }
 
-                    moveresidues[r1-edgeleft_r] = true;
-                    moveresidues[r2-edgeright_r+bp_len] = true;
-
-                    bindmap[r1-edgeleft_r][r2-edgeright_r+bp_len]=2;
-                    bindmap[r2-edgeright_r+bp_len][r1-edgeleft_r]=2;
-
-                    if(j != bp_len-1)
-                    {
-                        bindmap[j][j+1]=1;
-                        bindmap[bp_len+j][bp_len+j+1]=1;
+                for(j=edgeleft_r;j<edgeright_r+1;j++)
+                {
+                    AssembleNonBpNtFrag(c1, j, pdb_entry, ideal_rna["loop"], superimposedstr.residues[addres_f+j-edgeleft_r], templateidx);
+                    inputtedstr.residues[addres_f+j-edgeleft_r] = inputtedstrall.residues[j];
+                    inputtedstrflag[addres_f+j-edgeleft_r] = inputtedstrallflag[j];
+                    
+                    moveresidues[addres_f+j-edgeleft_r] = true;
+                    if(j != edgeright_r){
+                        bindmap[addres_f+j-edgeleft_r][addres_f+j-edgeleft_r+1] = 1;
                     }
                 }
-                
+
+                if(pairtype_right == 1)
+                {
+                    //AssembleBasePairFrag(outedge_right_c,outedge_right_r,outedge_right_pair_c,outedge_right_pair_r, pdb_entry, ideal_rna["bp"], superimposedstr.residues[loop_len-2], superimposedstr.residues[loop_len-1], inputtedstr.residues[loop_len-2], inputtedstr.residues[loop_len-1], inputtedstrflag[loop_len-2], inputtedstrflag[loop_len-1], templateidx);
+                    ExtractNt(outedge_right_c, outedge_right_r, pdb_entry, superimposedstr.residues[loop_len-2]);
+                    inputtedstr.residues[loop_len-2] = inputtedstrall.residues[outedge_right_r];
+                    inputtedstrflag[loop_len-2] = inputtedstrallflag[outedge_right_r];
+
+                    ExtractNt(outedge_right_pair_c, outedge_right_pair_r, pdb_entry, superimposedstr.residues[loop_len-1]);
+                    inputtedstr.residues[loop_len-1] = inputtedstrall.residues[outedge_right_pair_r];
+                    inputtedstrflag[loop_len-1] = inputtedstrallflag[outedge_right_pair_r];
+
+                    bindmap[loop_len-2][loop_len-1] = 2;
+                    bindmap[loop_len-1][loop_len-2] = 2;
+                    bindmap[loop_len-3][loop_len-2] = 1;
+                }
+
                 //if(option > 1){
                     //AttachHydrogen(superimposedstr, extparameters.hydparam, extparameters.hydparamidx);
-                    
-                    //fragmentoptimizationbp(superimposedstr, inputtedstr, inputtedstrflag, bp_len, startene, endene, extparameters, bindmap, stackmap, moveresidues, 5000);
-                    //cout<<"Fragment optimization is finished (stem " << i+1 << "), " << "starting energy: " << startene << ", final energy: " << endene<<endl;
-                    
+
+                    //fragmentoptimizationloop(superimposedstr, inputtedstr, inputtedstrflag, loop_len, startene, endene, extparameters, bindmap, stackmap, moveresidues, 5000);
+                    //cout<<"Fragment optimization is finished (loop " << i+1 << "), " << "starting energy: " << startene << ", final energy: " << endene<<endl;
+
                     //RemoveHydrogens(superimposedstr);
                 //}
 
-                for (j=0;j<stembps[i].size();j++)
-                {
-                    c1= stembps[i][j][0];
-                    r1= stembps[i][j][1];
-                    c2= stembps[i][j][2];
-                    r2= stembps[i][j][3];
-
-                    if(c == c1) updateflag[r1]=true;
-                    if(c == c2) updateflag[r2]=true;
-
-                    UpdateStemStructure(c1, r1, c2, r2, pdb_entry, fill_chain, fill_residue_map[r1], fill_residue_map[r2], superimposedstr.residues[r1-edgeleft_r], superimposedstr.residues[r2-edgeright_r+bp_len], fullatom);
+                for(j=edgeleft_r;j<edgeright_r+1;j++){
+                    if(c == c1) updateflag[j]=true;
+                    UpdateLoopStructure(c1, j, pdb_entry, fill_chain, fill_residue_map[j], superimposedstr.residues[addres_f+j-edgeleft_r], fullatom);
                 }
             }
-
-            AddMissingAtoms(pdb_entry, c, fill_chain, fill_residue_map, updateflag, 2);
-
-            updateflag.clear();
-            updateflag.resize(pdb_entry.chains[c].residues.size(), false);
-
-            for (auto& it : loopnts)
-            {
-                c1=it.first;
-                for(i=0;i<it.second.size();i++){
-                    int edgeleft_r = it.second[i].first;
-                    int edgeright_r = it.second[i].second;
-
-                    int outedge_left_r = connectnts.at(c1)[i][0][0];
-                    int outedge_left_c = connectnts.at(c1)[i][0][2];
-                    int outedge_left_pair_r = connectnts.at(c1)[i][0][1];
-                    int outedge_left_pair_c = connectnts.at(c1)[i][0][3];
-                    int pairtype_left = connectnts.at(c1)[i][0][4];
-
-                    int outedge_right_r = connectnts.at(c1)[i][1][0];
-                    int outedge_right_c = connectnts.at(c1)[i][1][2];
-                    int outedge_right_pair_r = connectnts.at(c1)[i][1][1];
-                    int outedge_right_pair_c = connectnts.at(c1)[i][1][3];
-                    int pairtype_right = connectnts.at(c1)[i][1][4];
-
-                    int addres=0;
-                    int addres_f=0;
-                    int addres_e=0;
-
-                    if(pairtype_left == 2){
-                        addres_f+=1;
-                        addres_e+=1;
-                    }else if(pairtype_left == 1 && pairtype_right == 1){
-                        addres_f+=2;
-                        addres_e+=2;
-                    }else if(pairtype_left == 1){
-                        addres_f+=2;
-                    }else if(pairtype_right == 1){
-                        addres_e+=2;
-                    }
-                    addres = addres_f+addres_e;
-
-                    FragmentStructure superimposedstr;
-                    FragmentStructure inputtedstr;
-                    vector<vector<bool>> inputtedstrflag;
-                    int loop_len = edgeright_r-edgeleft_r+1+addres;
-
-                    vector<vector<int>> bindmap(loop_len, vector<int>(loop_len, 0));
-                    vector<bool> moveresidues(loop_len, false);
-                    superimposedstr.residues.resize(loop_len);
-                    inputtedstr.residues.resize(loop_len);
-                    inputtedstrflag.resize(loop_len);
-
-                    if(pairtype_left == 2)
-                    {
-                        ExtractNt(c1, outedge_left_r, pdb_entry, superimposedstr.residues[0]);
-                        inputtedstr.residues[0] = inputtedstrall.residues[outedge_left_r];
-                        inputtedstrflag[0] = inputtedstrallflag[outedge_left_r];
-                    
-                        ExtractNt(c1, outedge_left_pair_r, pdb_entry, superimposedstr.residues[loop_len-1]);
-                        inputtedstr.residues[loop_len-1] = inputtedstrall.residues[outedge_left_pair_r];
-                        inputtedstrflag[loop_len-1] = inputtedstrallflag[outedge_left_pair_r];
-                        
-                        bindmap[0][loop_len-1] = 2;
-                        bindmap[loop_len-1][0] = 2;
-                        bindmap[0][1] = 1;
-                    }else if(pairtype_left == 1)
-                    {
-                        ExtractNt(outedge_left_pair_c, outedge_left_pair_r, pdb_entry, superimposedstr.residues[0]);
-                        inputtedstr.residues[0] = inputtedstrall.residues[outedge_left_pair_r];
-                        inputtedstrflag[0] = inputtedstrallflag[outedge_left_pair_r];
-
-                        ExtractNt(outedge_left_c, outedge_left_r, pdb_entry, superimposedstr.residues[1]);
-                        inputtedstr.residues[1] = inputtedstrall.residues[outedge_left_r];
-                        inputtedstrflag[1] = inputtedstrallflag[outedge_left_r];
-                        
-                        bindmap[0][1] = 2;
-                        bindmap[1][0] = 2;
-                        bindmap[1][2] = 1;
-                    }
-
-                    for(j=edgeleft_r;j<edgeright_r+1;j++)
-                    {
-                        AssembleNonBpNtFrag(c1, j, pdb_entry, ideal_rna["loop"], superimposedstr.residues[addres_f+j-edgeleft_r], templateidx);
-                        inputtedstr.residues[addres_f+j-edgeleft_r] = inputtedstrall.residues[j];
-                        inputtedstrflag[addres_f+j-edgeleft_r] = inputtedstrallflag[j];
-                        
-                        moveresidues[addres_f+j-edgeleft_r] = true;
-                        if(j != edgeright_r){
-                            bindmap[addres_f+j-edgeleft_r][addres_f+j-edgeleft_r+1] = 1;
-                        }
-                    }
-
-                    if(pairtype_right == 1)
-                    {
-                        //AssembleBasePairFrag(outedge_right_c,outedge_right_r,outedge_right_pair_c,outedge_right_pair_r, pdb_entry, ideal_rna["bp"], superimposedstr.residues[loop_len-2], superimposedstr.residues[loop_len-1], inputtedstr.residues[loop_len-2], inputtedstr.residues[loop_len-1], inputtedstrflag[loop_len-2], inputtedstrflag[loop_len-1], templateidx);
-                        ExtractNt(outedge_right_c, outedge_right_r, pdb_entry, superimposedstr.residues[loop_len-2]);
-                        inputtedstr.residues[loop_len-2] = inputtedstrall.residues[outedge_right_r];
-                        inputtedstrflag[loop_len-2] = inputtedstrallflag[outedge_right_r];
-
-                        ExtractNt(outedge_right_pair_c, outedge_right_pair_r, pdb_entry, superimposedstr.residues[loop_len-1]);
-                        inputtedstr.residues[loop_len-1] = inputtedstrall.residues[outedge_right_pair_r];
-                        inputtedstrflag[loop_len-1] = inputtedstrallflag[outedge_right_pair_r];
-
-                        bindmap[loop_len-2][loop_len-1] = 2;
-                        bindmap[loop_len-1][loop_len-2] = 2;
-                        bindmap[loop_len-3][loop_len-2] = 1;
-                    }
-
-                    //if(option > 1){
-                        //AttachHydrogen(superimposedstr, extparameters.hydparam, extparameters.hydparamidx);
-
-                        //fragmentoptimizationloop(superimposedstr, inputtedstr, inputtedstrflag, loop_len, startene, endene, extparameters, bindmap, stackmap, moveresidues, 5000);
-                        //cout<<"Fragment optimization is finished (loop " << i+1 << "), " << "starting energy: " << startene << ", final energy: " << endene<<endl;
-
-                        //RemoveHydrogens(superimposedstr);
-                    //}
-
-                    for(j=edgeleft_r;j<edgeright_r+1;j++){
-                        if(c == c1) updateflag[j]=true;
-                        UpdateLoopStructure(c1, j, pdb_entry, fill_chain, fill_residue_map[j], superimposedstr.residues[addres_f+j-edgeleft_r], fullatom);
-                    }
-                }
-            }
-            AddMissingAtoms(pdb_entry, c, fill_chain, fill_residue_map, updateflag, 2);
-        }else{
-            logger.log("Skip full-atomic structure genratation\n", true);
-            GetInitStr(c, pdb_entry, inputtedstrall, inputtedstrallflag);
-
-            double startene, endene;
         }
+        AddMissingAtoms(pdb_entry, c, fill_chain, fill_residue_map, updateflag, 2);
+    }else{
+        logger.log("Skip full-atomic structure genratation\n", true);
+        GetInitStr(c, pdb_entry, inputtedstrall, inputtedstrallflag);
+
+        double startene, endene;
     }
 
     fill_atom.name.clear();
