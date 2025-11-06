@@ -81,10 +81,10 @@ Here, base-paring and base-stacking interaction information must be inputted as 
 The refinement type can be selected from the following options.
 | Mode | Description |
 | :-------------: | :-------------: |
-| 1 | Full atomic structure generation only |
-| 2 | MC-based refinement |
-| 3 | L-BFGS-based refinement |
-| 4 | MC-based refinement + L-BFGS-based refinement |
+| 0 | Full atomic structure generation only |
+| 1 | MC-based refinement |
+| 2 | L-BFGS-based refinement |
+| 3 | MC-based refinement + L-BFGS-based refinement |
 
 
 
