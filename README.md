@@ -37,7 +37,7 @@ python RNAref3D/RNAref3Dbp/main.py --pdb <input_pdb_file> -o <output_directory> 
 (Options)
 | Option  | Description | Default |
 | :-------------: | :-------------: | :-------------: |
-| --pdb  | Path to the PDB file containing the backbone structure | Required |
+| --pdb  | Input pdb file (backbone structure) | Required |
 | -o  | Output directory | Required |
 | -bp  | To predict base-stacking interactions only from base-pair information, specify the path to the base-pair file | None |   
 
@@ -68,10 +68,10 @@ Here, base-paring and base-stacking interaction information must be inputted as 
 (Options)  
 | Option | Description | Default |
 | :-------------: | :-------------: | :-------------: |
-| -i | Path to the PDB file containing the backbone structure | Required |
+| -i | Input pdb file (backbone structure) | Required |
 | -o | Output directory | Required |
-| -bp | Path to the base-pair file | Required |
-| -st | Path to the base-stacking file | Required |
+| -bp | Base-pair file | Required |
+| -st | Base-stacking file | Required |
 | -m | Refinement types (0-3) | 3 |
 | -mtime | MC-based refinement time [seconds] | 7200 |
 | -ltime | L-BFGS-based refinement time [seconds] | 3600 |
