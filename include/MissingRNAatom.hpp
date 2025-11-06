@@ -24,7 +24,7 @@ size_t countUniqAtom(vector<vector<double> >&xyz_list2);
 bool AssembleBasePairFrag(const int c1, const int r1, const int c2, const int r2, 
     const ModelUnit &pdb_entry, map<string, vector<ModelUnit>> &ideal_rna,
     FragmentResidue &spresidue1, FragmentResidue &spresidue2, 
-    int templateidx);
+    int &templateidx);
 void UpdateStemStructure(const int c1, const int r1, const int c2, const int r2, 
     const ModelUnit &pdb_entry, ChainUnit &fill_chain,
     vector<string>missing_atom_vec_r1, vector<string>missing_atom_vec_r2,

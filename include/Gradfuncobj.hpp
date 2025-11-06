@@ -262,10 +262,10 @@ class Hbondobj
 	Point3s* teAtomAccgrad;
 	double idealadleng, idealahleng, idealahdang;
 	const double dK;
-    double dREq=1.55;
-	double dXiR=2.0;
-	double dXiTheta=2.0;
-	double dThreshold=-1.0;
+    double dREq;
+	double dXiR;
+	double dXiTheta;
+	double dThreshold;
 
   public:
   	Hbondobj(Point3s* _teAtomHyd, Point3s* _teAtomDon, Point3s* _teAtomAcc, Point3s* _teAtomHydgrad, Point3s* _teAtomDongrad, Point3s* _teAtomAccgrad, const double &_idealadleng, const double &_idealahleng, const double &_idealahdang, const double &_dK)
@@ -295,10 +295,10 @@ class Hbond2hydobj
 	Point3s* teAtomAccgrad;
 	double idealadleng, idealahleng, idealahdang;
 	const double dK;
-    double dREq=1.55;
-	double dXiR=2.0;
-	double dXiTheta=2.0;
-	double dThreshold=-1.0;
+    double dREq;
+	double dXiR;
+	double dXiTheta;
+	double dThreshold;
 
   public:
   	Hbond2hydobj(Point3s* _teAtomHyd1, Point3s* _teAtomHyd2, Point3s* _teAtomDon, Point3s* _teAtomAcc, Point3s* _teAtomHydgrad1, Point3s* _teAtomHydgrad2, Point3s* _teAtomDongrad, Point3s* _teAtomAccgrad, const double &_idealadleng, const double &_idealahleng, const double &_idealahdang, const double &_dK)
