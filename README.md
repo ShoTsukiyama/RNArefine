@@ -32,11 +32,13 @@ Finally, the generated full-atomic structure is refined by Monte-Carlo (MC) simu
 ### 2-1. Base-pairing and base-stacking prediction
 RNAref3D predicts base-pair and base-stacking interactions by geometric attention-based neural network models.
 ```
-python RNAref3D/RNAref3Dbp/main.py --pdb [Path to the PDB file containing the backbone structure] -o [Output directory] [option]
+python RNAref3D/RNAref3Dbp/main.py --pdb <input_pdb_file> -o <output_directory> [other options]
 ```
-(Other options)
+(Options)
 | Option  | Description | Default |
 | :-------------: | :-------------: | :-------------: |
+| --pdb  | Path to the PDB file containing the backbone structure | Required |
+| -o  | Output directory | Required |
 | -bp  | To predict base-stacking interactions only from base-pair information, specify the path to the base-pair file | None |   
 
 (Refer to the /RNAref3D/example/RNAref3D_bp.txt for the format of the base-pair file)
@@ -60,12 +62,16 @@ As a result, the files RNAref3D_bp.txt and RNAref3D_stack.txt are output to the 
 ### 2-2. Full-atomic structure generation and RNA 3D structure refinement
 The following command executes the full-atomic structure generation and refinements of RNA 3D structures.
 ```
-/RNAref3D/bin/RNAref3D -i [Path to the PDB file containing the backbone structure] -o [directory to output] -bp [Path to the base-pair file] -st [Path to the base-stacking file] [other options]
+/RNAref3D/bin/RNAref3D -i <input_pdb_file> -o <output_directory> -bp <input_bp_file> -st <input_st_file> [other options]
 ```
 Here, base-paring and base-stacking interaction information must be inputted as follows.  
-(Other options)  
+(Options)  
 | Option | Description | Default |
 | :-------------: | :-------------: | :-------------: |
+| -i | Path to the PDB file containing the backbone structure | Required |
+| -o | Output directory | Required |
+| -bp | Path to the base-pair file | Required |
+| -st | Path to the base-stacking file | Required |
 | -m | Refinement types (0-3) | 3 |
 | -mtime | MC-based refinement time [seconds] | 7200 |
 | -ltime | L-BFGS-based refinement time [seconds] | 3600 |
