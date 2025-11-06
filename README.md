@@ -60,11 +60,11 @@ As a result, the files RNAref3D_bp.txt and RNAref3D_stack.txt are output to the 
 <br>
 
 ### 2-2. Full-atomic structure generation and RNA 3D structure refinement
-The following command executes the full-atomic structure generation and refinements of RNA 3D structures.
+The following command executes the full-atomic structure generation and refinements of RNA 3D structures.  
+Here, base-paring and base-stacking interaction information must be inputted as follows.  
 ```
 /RNAref3D/bin/RNAref3D -i <input_pdb_file> -o <output_directory> -bp <input_bp_file> -st <input_st_file> [other options]
 ```
-Here, base-paring and base-stacking interaction information must be inputted as follows.  
 (Options)  
 | Option | Description | Default |
 | :-------------: | :-------------: | :-------------: |
