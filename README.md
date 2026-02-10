@@ -11,16 +11,27 @@ Download the trained models from [here](https://tmdacjp-my.sharepoint.com/:f:/r/
 Unzip the file (models.zip) and place the directory (models) in the RNArefine.  
   
 ## 1-3. Setup of refinement package
-Run cmake in the /RNArefine directory to compile the program.
+Follow these steps to build and install RNArefine from the source.  
+1. Prepare the Build Directory  
+We recommend using an out-of-source build to keep the source tree clean.
 ```
 cd RNArefine
-mkdir build
-cd build
+mkdir build && cd build
+```
+<br>
+2. Configure the Project  
+Run cmake to generate the build files.
+```
 cmake ..
+```
+<br>
+3. Compile and Install  
+Build the binaries and install them to your system.
+```
 make
 make install
 ```
-    
+
 <br>
 
 # 2. Full-atomic structure generation and RNA refinement
