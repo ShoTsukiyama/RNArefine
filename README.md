@@ -102,7 +102,7 @@ The refinement type can be selected from the following options.
 <br>
 
 example)  
-If you want to refine a structure at ./Examples/example.pdb basd on the predicted base-pairing (./Examples/out/RNArefine_bp.txt) and base-stacking (./Examples/out/RNArefine_stack.txt) interactions, run the following command.  
+If you want to refine a structure (./Examples/example.pdb) basd on the predicted base-pairing (./Examples/out/RNArefine_bp.txt) and base-stacking (./Examples/out/RNArefine_stack.txt) interactions, run the following command.  
 ```
 RNArefine -i ./Examples/example.pdb -o ./Examples/out -bp ./Examples/out/RNArefine_bp.txt -st ./Examples/out/RNArefine_stack.txt
 ```
