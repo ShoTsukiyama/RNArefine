@@ -317,6 +317,7 @@ double MonteCarloSimulation::Simulation(double maxtime, int startepochidx)
 
         auto end_time = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> elapsed_time = end_time - start_time;
+    
         if(elapsed_time.count() > timelimit) break;
     }
 
@@ -583,7 +584,7 @@ double exeEM(FragmentStructure &superimposedstr, int c, string pramdir, const Ex
 double MonteCarloSimulationProcess(ModelUnit &pdb_entry, const size_t c, const string &pramdir,
     const vector<pair<double,vector<size_t>>> &bp_vec, const map<int, vector<pair<int, int>>> &loopnts, const vector<pair<double,vector<size_t>>> &noncbp_vec,
     const vector<vector<int>> &stemconnectnts, const map<int, vector<vector<vector<int>>>> &connectnts, const vector<vector<pair<int, double>>> &stmap,
-    const FragmentStructure &inputtedstrall, const vector<vector<bool>> &inputtedstrallflag, const vector<double> &score_vec,
+    const FragmentStructure &inputtedstrall, const vector<vector<bool>> &inputtedstrallflag, const vector<double> &init_weight,
     const vector<FragmentStructure> &templatestrall, const vector<vector<vector<bool>>> &templatestrallflag,
     const ExtParams &extparameters, vector<vector<vector<double>>> &hydrogencoords, double maxtime, const string &outdir, const bool &logflag, const int option)
 {
@@ -676,7 +677,7 @@ double MonteCarloSimulationProcess(ModelUnit &pdb_entry, const size_t c, const s
             base2=superimposedstr.residues[j].restype;
             initdistmap[i][j].resize(AccAtomParamNum[base1[0]][2], 0);
             initdistflag[i][j].resize(AccAtomParamNum[base1[0]][2], false);
-            initdistscores[i][j] = score_vec[i] * score_vec[j];
+            initdistscores[i][j] = min(init_weight[i], init_weight[j]);
             for(int k=0;k<template_target_atoms_idx.size();k++){
                 if(k < inputtedstrallflag[i].size() && k < inputtedstrallflag[j].size()){
                     int l =  template_target_atoms_idx[k];
@@ -763,14 +764,14 @@ double MonteCarloSimulationProcess(ModelUnit &pdb_entry, const size_t c, const s
 double MonteCarloSimulationProcess(ModelUnit &pdb_entry, const string &pramdir, 
     const vector<pair<double,vector<size_t>>> &bp_vec, const map<int, vector<pair<int, int>>> &loopnts, const vector<pair<double,vector<size_t>>> &noncbp_vec,
     const vector<vector<int>> &stemconnectnts, const map<int, vector<vector<vector<int>>>> &connectnts, const vector<vector<pair<int, double>>> &stmap,
-    const FragmentStructure &inputtedstrall, const vector<vector<bool>> &inputtedstrallflag, const vector<double> &score_vec,
+    const FragmentStructure &inputtedstrall, const vector<vector<bool>> &inputtedstrallflag, const vector<double> &init_weight,
     const vector<FragmentStructure> &templatestrall, const vector<vector<vector<bool>>> &templatestrallflag,
     const ExtParams &extparameters, vector<vector<vector<double>>> &hydrogencoords, double maxtime, const string &outdir, const bool &logflag, const int option)
 {
     double final_ene;
     size_t c;
     for (c=0;c<pdb_entry.chains.size();c++){
-        final_ene = MonteCarloSimulationProcess(pdb_entry, c, pramdir, bp_vec, loopnts, noncbp_vec, stemconnectnts, connectnts, stmap, inputtedstrall, inputtedstrallflag, score_vec, templatestrall, templatestrallflag, extparameters, hydrogencoords, maxtime, outdir, logflag, option);
+        final_ene = MonteCarloSimulationProcess(pdb_entry, c, pramdir, bp_vec, loopnts, noncbp_vec, stemconnectnts, connectnts, stmap, inputtedstrall, inputtedstrallflag, init_weight, templatestrall, templatestrallflag, extparameters, hydrogencoords, maxtime, outdir, logflag, option);
     }
     
     return final_ene;

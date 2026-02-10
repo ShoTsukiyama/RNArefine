@@ -43,7 +43,7 @@ bool StructureOptimization(ModelUnit &pdb_entry, const size_t c, const map<strin
     const vector<FragmentStructure> &templatestrall, const vector<vector<vector<bool>>> &templatestrallflag,
     const vector<pair<double,vector<size_t>>> &bp_vec, const map<int, vector<pair<int, int>>> &loopnts, const vector<pair<double,vector<size_t>>> &noncbp_vec, 
     const vector<vector<int>> &stemconnectnts, const map<int, vector<vector<vector<int>>>> &connectnts,
-    const vector<vector<pair<int, double>>> &stackmap, const map<string, vector<vector<vector<double>>>> &bpdistmap, const map<string, map<string, vector<vector<vector<double>>>>> &stackdistmap, const ExtParams &extparameters, const vector<vector<vector<double>>> &hydrogencoords, const double maxtime, Logger &logger, const int option)
+    const vector<vector<pair<int, double>>> &stackmap, const map<string, vector<vector<vector<double>>>> &bpdistmap, const map<string, map<string, vector<vector<vector<double>>>>> &stackdistmap, const ExtParams &extparameters, const vector<double> &init_weight, const vector<vector<vector<double>>> &hydrogencoords, const double maxtime, Logger &logger, const int option)
     //map<string, vector<vector<double>>> &blengthparam, map<string, vector<vector<double>>> &adjblengthparam, 
     //map<string, vector<vector<double>>> &ntangleparam, map<string, vector<vector<int>>> &ntangleparamidx, map<string, vector<vector<double>>> &adjangleparam, map<string, vector<vector<int>>> &adjangleparamidx, 
     //map<string, vector<vector<double>>> &hydparam, map<string, vector<vector<int>>> &hydparamidx, const int option=0)
@@ -163,13 +163,13 @@ bool StructureOptimization(ModelUnit &pdb_entry, const size_t c, const map<strin
         }
     }
 
-    if(option == 3){
-        AttachHydrogen(superimposedstr, hydrogencoords, extparameters.hydparam, extparameters.hydparamidx);
-    }else{
-        AttachHydrogen(superimposedstr, extparameters.hydparam, extparameters.hydparamidx);
-    }
+    //if(option == 3){
+        //AttachHydrogen(superimposedstr, hydrogencoords, extparameters.hydparam, extparameters.hydparamidx);
+    //}else{
+    AttachHydrogen(superimposedstr, extparameters.hydparam, extparameters.hydparamidx);
+    //}
     //UpdateHydrogen(superimposedstr, extparameters.hydparam, extparameters.hydparamidx);
-    fragmentoptimization(superimposedstr, inputtedstr_temp, inputtedstrflag_temp, templatestrall, templatestrallflag, ideal_rna, startene, endene, extparameters, bindmap, stackmap, cbpmap, noncbpmap, bpdistmap, stackdistmap, moveresidues, maxtime, 30000, logger);
+    fragmentoptimization(superimposedstr, inputtedstr_temp, inputtedstrflag_temp, templatestrall, templatestrallflag, init_weight, ideal_rna, startene, endene, extparameters, bindmap, stackmap, cbpmap, noncbpmap, bpdistmap, stackdistmap, moveresidues, maxtime, 30000, logger);
     //cout<<"Fragment optimization is finished (whole structure)" << "starting energy: " << startene << ", final energy: " << endene<<endl;
 
     RemoveHydrogens(superimposedstr);
@@ -187,7 +187,7 @@ bool StructureOptimization(ModelUnit &pdb_entry, const map<string, map<string, v
     const vector<FragmentStructure> &templatestrall, const vector<vector<vector<bool>>> &templatestrallflag,
     const vector<pair<double,vector<size_t>>> &bp_vec, const map<int, vector<pair<int, int>>> &loopnts, const vector<pair<double,vector<size_t>>> &noncbp_vec,
     const vector<vector<int>> &stemconnectnts, const map<int, vector<vector<vector<int>>>> &connectnts,
-    const vector<vector<pair<int, double>>> &stackmap, const map<string, vector<vector<vector<double>>>> &bpdistmap, const map<string, map<string, vector<vector<vector<double>>>>> &stackdistmap, const ExtParams &extparameters, const vector<vector<vector<double>>> &hydrogencoords, const double maxtime, const string &outdir, const bool &logflag, const int option)
+    const vector<vector<pair<int, double>>> &stackmap, const map<string, vector<vector<vector<double>>>> &bpdistmap, const map<string, map<string, vector<vector<vector<double>>>>> &stackdistmap, const ExtParams &extparameters, const vector<double> &init_weight, const vector<vector<vector<double>>> &hydrogencoords, const double maxtime, const string &outdir, const bool &logflag, const int option)
     //map<string, vector<vector<double>>> &blengthparam, map<string, vector<vector<double>>> &adjblengthparam, 
     //map<string, vector<vector<double>>> &ntangleparam, map<string, vector<vector<int>>> &ntangleparamidx, map<string, vector<vector<double>>> &adjangleparam, map<string, vector<vector<int>>> &adjangleparamidx, 
     //map<string, vector<vector<double>>> &hydparam, map<string, vector<vector<int>>> &hydparamidx, const int option=0)
@@ -201,7 +201,7 @@ bool StructureOptimization(ModelUnit &pdb_entry, const map<string, map<string, v
 
     size_t c;
     for (c=0;c<pdb_entry.chains.size();c++)
-    StructureOptimization(pdb_entry, c, ideal_rna, inputtedstrall, inputtedstrallflag, templatestrall, templatestrallflag, bp_vec, loopnts, noncbp_vec, stemconnectnts, connectnts, stackmap, bpdistmap, stackdistmap, extparameters, hydrogencoords, maxtime, logger, option);
+    StructureOptimization(pdb_entry, c, ideal_rna, inputtedstrall, inputtedstrallflag, templatestrall, templatestrallflag, bp_vec, loopnts, noncbp_vec, stemconnectnts, connectnts, stackmap, bpdistmap, stackdistmap, extparameters, init_weight, hydrogencoords, maxtime, logger, option);
 
     return true;
 }

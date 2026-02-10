@@ -82,6 +82,8 @@ extern map<char, vector<vector<double>>> MCHYDADDLENGTHPARAM;
 extern map<char, vector<vector<double>>> MCHYDADDANGLEPARAM;
 
 extern map<char, vector<double>> MCVWPARAM;
+extern map<char, vector<vector<vector<double>>>> MCSUGARTORSION;
+extern map<char, vector<vector<double>>> MCBBTORSION;
 
 extern map<char, vector<Binnedparamtype>> MCTORSIONDISTRIBUTION;
 extern map<char, vector<Binnedparamtype>> MCBASETORSIONDISTRIBUTION;
@@ -102,6 +104,7 @@ extern map<char, map<char, vector<vector<double>>>> BPPARAM;
 extern map<char, vector<vector<Residueatoms>>> LOOPNTTEMPLATE;
 extern map<char, vector<vector<Residueatoms>>> NTTEMPLATE;
 extern map<char, map<char, map<int, map<int, HydroBondParameters>>>> BPHBOND;
+extern map<char, map<char, map<int, map<int, BBHydroBondParameters>>>> BBHBOND;
 
 extern map<string, vector<vector<int>>> molConnectone;
 extern map<string, vector<vector<int>>> molConnecttwo; 
@@ -248,6 +251,25 @@ static map<string, vector<int>> HBondDonerAtoms = {
     {"U",{0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}}
 };
 
+static map<string, vector<vector<vector<int>>>> BBHbondInfo = {
+    {"AA",{{{7,27,9,0}}, {{15,27,9,0}}, {{18,27,9,0}}, {{21,27,9,0}}}},
+    {"AC",{{{7,25,9,0}}, {{15,25,9,0}}, {{18,25,9,0}}, {{21,25,9,0}}}},
+    {"CA",{{{7,27,9,0}}, {{18,27,9,0}}, {{17,27,9,0}}}},
+    {"AG",{{{7,28,9,0}}, {{15,28,9,0}}, {{18,28,9,0}}, {{21,28,9,0}}}},
+    {"GA",{{{7,27,9,0}}, {{21,27,9,0}}, {{20,27,9,0}}, {{18,27,9,0}}}},
+    {"AU",{{{7,25,9,0}}, {{15,25,9,0}}, {{18,25,9,0}}, {{21,25,9,0}}}},
+    {"UA",{{{7,27,9,0}}, {{19,27,9,0}}, {{18,27,9,0}}}},
+    {"GG",{{{7,28,9,0}}, {{21,28,9,0}}, {{20,28,9,0}}, {{18,28,9,0}}}},
+    {"GC",{{{7,25,9,0}}, {{21,25,9,0}}, {{20,25,9,0}}, {{18,25,9,0}}}},
+    {"CG",{{{7,28,9,0}}, {{18,28,9,0}}, {{17,28,9,0}}}},
+    {"GU",{{{7,25,9,0}}, {{21,25,9,0}}, {{20,25,9,0}}, {{18,25,9,0}}}},
+    {"UG",{{{7,28,9,0}}, {{19,28,9,0}}, {{18,28,9,0}}}},
+    {"CC",{{{7,25,9,0}}, {{18,25,9,0}}, {{17,25,9,0}}}},
+    {"UC",{{{7,25,9,0}}, {{19,25,9,0}}, {{18,25,9,0}}}},
+    {"CU",{{{7,25,9,0}}, {{18,25,9,0}}, {{17,25,9,0}}}},
+    {"UU",{{{7,25,9,0}}, {{19,25,9,0}}, {{18,25,9,0}}}}
+};
+
 //Acc idx, Hyd idx, Don idx, order
 static map<string, vector<vector<vector<int>>>> BpHbondInfo = {
     {"AA",{{{21,30,20,0}, {21,31,20,0}}, {{15,30,20,0}, {15,31,20,0}}, {{18,30,20,0}, {18,31,20,0}}}},
@@ -264,7 +286,7 @@ static map<string, vector<vector<vector<int>>>> BpHbondInfo = {
     {"UG",{{{19,31,22,0}, {19,32,22,0}}, {{21,29,17,1}}}},
     {"CC",{{{18,29,19,0}, {18,30,19,0}}, {{17,29,19,0},{17,30,19,0}}}},
     {"UC",{{{18,29,19,0}, {18,30,19,0}}, {{19,29,19,0},{19,30,19,0}}, {{17,29,17,1}}, {{18,29,17,1}}}},
-    {"UC",{{{18,29,19,1}, {18,30,19,1}}, {{19,29,19,1},{19,30,19,1}}, {{17,29,17,0}}, {{18,29,17,0}}}},
+    {"CU",{{{18,29,19,1}, {18,30,19,1}}, {{19,29,19,1},{19,30,19,1}}, {{17,29,17,0}}, {{18,29,17,0}}}},
     {"UU",{{{18,29,17,0}}, {{19,29,17,0}}}}
 };
 
@@ -348,14 +370,15 @@ class HBondMCeneobj
         double dK;
         int* flag;
         mutable double prevene;
-        double dREq=1.55;
-        double dXiR=2.0;
-        double dXiTheta=2.0;
+        double dREq=0.0;
+        double dXiR=1.0;
+        double dXiTheta=1.0;
         double dThreshold=-1.0;
+        double beta=25;
 
         public:
         HBondMCeneobj(Point3s* _teAtomHyd, Point3s* _teAtomDon, Point3s* _teAtomAcc, double* _atomenergy2, double* _atomenergy3, const double &_idealadleng, const double &_idealahleng, const double &_idealahdang, double _dK, int* _flag)
-            : teAtomHyd(_teAtomHyd), teAtomDon(_teAtomDon), teAtomAcc(_teAtomAcc), atomenergy2(_atomenergy2), atomenergy3(_atomenergy3), idealadleng(_idealadleng), idealahleng(_idealahleng), idealahdang(cos(_idealahdang*RADDEG)), dK(_dK), flag(_flag), prevene(0.0), dREq(1.55), dXiR(2.0), dXiTheta(2.0), dThreshold(-1.0) {}
+            : teAtomHyd(_teAtomHyd), teAtomDon(_teAtomDon), teAtomAcc(_teAtomAcc), atomenergy2(_atomenergy2), atomenergy3(_atomenergy3), idealadleng(_idealadleng), idealahleng(_idealahleng), idealahdang(cos(_idealahdang*RADDEG)), dK(_dK), flag(_flag), prevene(0.0), dREq(0.0), dXiR(1.0), dXiTheta(1.0), dThreshold(-1.0) {}
     
             double calcenergyhydbond() const;
 
@@ -378,14 +401,15 @@ class HBond2MCeneobj
         double dK;
         int* flag;
         mutable double prevene;
-        double dREq=1.55;
-        double dXiR=2.0;
-        double dXiTheta=2.0;
+        double dREq=0.0;
+        double dXiR=1.0;
+        double dXiTheta=1.0;
         double dThreshold=-1.0;
+        double beta=25;
 
         public:
         HBond2MCeneobj(Point3s* _teAtomHyd1, Point3s* _teAtomHyd2, Point3s* _teAtomDon, Point3s* _teAtomAcc, double* _atomenergy2, double* _atomenergy3, const double &_idealadleng, const double &_idealahleng, const double &_idealahdang, double _dK, int* _flag)
-            : teAtomHyd1(_teAtomHyd1), teAtomHyd2(_teAtomHyd2), teAtomDon(_teAtomDon), teAtomAcc(_teAtomAcc), atomenergy2(_atomenergy2), atomenergy3(_atomenergy3), idealadleng(_idealadleng), idealahleng(_idealahleng), idealahdang(cos(_idealahdang*RADDEG)), dK(_dK), flag(_flag), prevene(0.0), dREq(1.55), dXiR(2.0), dXiTheta(2.0), dThreshold(-1.0) {}
+            : teAtomHyd1(_teAtomHyd1), teAtomHyd2(_teAtomHyd2), teAtomDon(_teAtomDon), teAtomAcc(_teAtomAcc), atomenergy2(_atomenergy2), atomenergy3(_atomenergy3), idealadleng(_idealadleng), idealahleng(_idealahleng), idealahdang(cos(_idealahdang*RADDEG)), dK(_dK), flag(_flag), prevene(0.0), dREq(0.0), dXiR(1.0), dXiTheta(1.0), dThreshold(-1.0) {}
     
             double calcenergyhydbond() const;
 
@@ -410,7 +434,7 @@ class InitMCdistobj
 
   public:
   InitMCdistobj(Point3s* _teAtomA, Point3s* _teAtomB, const double _initdist, const double _cutoff, double* _atomenergy1, double* _atomenergy2, const double _K, int* _flag)
-  		: teAtomA(_teAtomA), teAtomB(_teAtomB), initdist(_initdist), cutoff(_cutoff), atomenergy1(_atomenergy1), atomenergy2(_atomenergy2), K(_K), flag(_flag), prevene(0.0) {}
+  		: teAtomA(_teAtomA), teAtomB(_teAtomB), initdist(_initdist), cutoff(_cutoff*_cutoff), atomenergy1(_atomenergy1), atomenergy2(_atomenergy2), K(_K), flag(_flag), prevene(0.0) {}
     
     double calcenergyinit() const;
     void setprevene(const double &_prevene) const;
@@ -772,6 +796,8 @@ private:
     list<LJMCeneobj> ljene;
     list<HBondMCeneobj> hbondene;
     list<HBond2MCeneobj> hbond2ene;
+    list<HBondMCeneobj> bbhbondene;
+    list<HBondMCeneobj> bbbasehbondene;
     list<InitMCdistobj> initene;
     list<InitMCdistobj> templateene;
     list<InitMCPosobj> initposene;
@@ -787,6 +813,8 @@ private:
     vector<double> ljenergies;
     vector<double> hbondenergies;
     vector<double> hbond2energies;
+    vector<double> bbhbondenergies;
+    vector<double> bbbasehbondenergies;
     vector<double> initenergies;
     vector<double> initposenergies;
     vector<double> templateenergies;
@@ -823,7 +851,7 @@ private:
     
     //map<string, double> weightenergy= {{"InitPos", 0}, {"Init", 3.0}, {"Template", 3.0}, {"Length energy", 60.0}, {"Angle energy", 3.0}, {"Torsion energy", 0.1}, {"Comb torsion energy", 0.1}, {"Clash energy", 120.0}, {"Electros energy", 0}, {"LJ energy", 0}, {"Hbond energy", 20.0}, {"BP energy", 20.0}, {"Stack energy", 40.0}, {"Stack geometrical energy", 40.0}, {"Baseplane energy", 0.0}};
     
-    map<string, double> weightenergy= {{"InitPos", 0}, {"Init", 3.0}, {"Template", 3.0}, {"Length energy", 60.0}, {"Angle energy", 1.0}, {"Torsion energy", 1.0}, {"Comb torsion energy", 0}, {"Clash energy", 120.0}, {"Electros energy", 0}, {"LJ energy", 0}, {"Hbond energy", 20.0}, {"BP energy", 0.0}, {"Stack energy", 30.0}, {"Stack geometrical energy", 0.0}, {"Baseplane energy", 10.0}};
+    map<string, double> weightenergy= {{"InitPos", 0}, {"Init", 3.0}, {"Template", 3.0}, {"Length energy", 60.0}, {"Angle energy", 1.0}, {"Torsion energy", 1.0}, {"Comb torsion energy", 0}, {"Clash energy", 120.0}, {"Electros energy", 0}, {"LJ energy", 0}, {"Hbond energy", 60.0}, {"BB Hbond energy", 10.0}, {"BBBase Hbond energy", 0.0}, {"BP energy", 40.0}, {"Stack energy", 30.0}, {"Stack geometrical energy", 0.0}, {"Baseplane energy", 35.0}};
 
     //map<string, double> weightenergy= {{"Init", 3.0}, {"Template", 3.0}, {"Length energy", 70.0}, {"Angle energy", 1.0}, {"Torsion energy", 1.0}, {"Comb torsion energy", 1.0}, {"Clash energy", 150.0}, {"Electros energy", 0}, {"LJ energy", 0}, {"Hbond energy", 1.0}, {"BP energy", 15.0}, {"Stack energy", 50.0}};
 
@@ -851,8 +879,8 @@ public:
     void initializeatomenergy();
 
     //pair-wise energies
-    bool checkhbond2(Point3s* teAtomHyd1, Point3s* teAtomHyd2, Point3s* teAtomDon, Point3s* teAtomAcc);
-    bool checkhbond(Point3s* teAtomHyd, Point3s* teAtomDon, Point3s* teAtomAcc);
+    bool checkhbond2(Point3s* teAtomHyd1, Point3s* teAtomHyd2, Point3s* teAtomDon, Point3s* teAtomAcc, double length_thresh=4.5);
+    bool checkhbond(Point3s* teAtomHyd, Point3s* teAtomDon, Point3s* teAtomAcc, double length_thresh=4.5);
     void setpairwiseeneobj(const ExtParams &extparameters, const FragmentStructure &inputtedstrall, const vector<vector<bool>> &inputtedstrallflag, const vector<FragmentStructure> &templatestrall, const vector<vector<vector<bool>>> &templatestrallflag);
     //electros
     double calceneelectros();
@@ -866,6 +894,12 @@ public:
     //hbond
     double calcenehbond();
     void updateenehbond();
+    //bbhbond
+    double calcenebbhbond();
+    void updateenebbhbond();
+    //bbbasehbond
+    double calcenebbbasehbond();
+    void updateenebbbasehbond();
     //Init
     double calceneinit();
     void updateeneinit();
@@ -914,19 +948,19 @@ public:
     int getrandval(vector<double> tmov,double trandnum);
     //angle
     bool fmovementang(double oldenergy, double &newenergy);
-    void selecttargetang(int &trandpos, int &angtype, double r);
+    bool selecttargetang(int &trandpos, int &angtype, double r);
     double getmovangval(double val, double mean, double std, double k);
     void setangntflap(double trandpos, double base, int angtype);
     void setangflap( double trandpos, double base, int angtype);
     //length
     bool fmovementleng(double oldenergy, double &newenergy);
-    void selecttargetleng(int &trandpos, int &lengtype, double r);
+    bool selecttargetleng(int &trandpos, int &lengtype, double r);
     double getmovlengval(double val, double mean, double std, double k);
     void setlengflap(double trandpos, double base, int lengtype);
     void setlengntflap(double trandpos, double base, int lengtype);
     //torsion
     bool fmovementtor(double oldenergy, double &newenergy);
-    void selecttargettor(int &trandpos, int &tortype, double r);
+    bool selecttargettor(int &trandpos, int &tortype, double r);
     double sampletorsion(vector<double> &logdistr, double logtotal, vector<double> &center, double span);
     void settorflap(double trandpos, double base, int tortype);
     void settorntflap(double trandpos, double base, int tortype);
@@ -950,17 +984,30 @@ public:
 
     //fragment optimization
     void MCprepgrad(vector<vector<Point3s>> &gradptv);
+    void supbpfragmain(const vector<vector<int>> &basepairlist);
+    void supbpfrag(int res1, int res2, int &minfragidx, double &minrmsd);
+    void MCresetNonbondedobj(vector<vector<Point3s>> &gradient, const vector<vector<int>> &contactmap, 
+        const vector<vector<int>> &bindingmap, const vector<vector<int>> &cbasepairlist, const vector<vector<int>> &noncbasepairlist, 
+        const vector<double> &cbasepairscorelist, const vector<double> &noncbasepairscorelist,  
+        list<Hbondobj> &hbondobj, list<Hbond2hydobj> &hbondbpobj, map<string, double> &enecoeff);
     void MCfragmentoptimization(
         const map<int, vector<Point3s>> &initstructure, const vector<vector<int>> &bindingmap,
         const vector<bool> &moveresidues, const vector<vector<int>> &contactmap, const vector<vector<double>> &stackingmap,
         const vector<vector<int>> &basepairlist, const vector<vector<int>> &noncbasepairlist,
-        const vector<double> &basepairscorelist, const vector<double> &noncbasepairscorelist);
+        const vector<double> &basepairscorelist, const vector<double> &noncbasepairscorelist,
+        const bool bpoption);
+
     void MCsetinitobj(const map<int, vector<Point3s>> &initstructure, vector<vector<Point3s>> &gradient, list<InitPosobj> &binitobj, double K);
     void MCsetinitpairobj(const map<int, vector<Point3s>> &initstructure, const vector<bool> &moveresidues, vector<vector<Point3s>> &gradient, list<InitPairobj> &binitdistobj, double K);
     void MCsettemplatepairobj(const vector<bool> &moveresidues, vector<vector<Point3s>> &gradient, list<InitPairobj> &binitdistobj, double K);
     void MCsetlengthobj(const vector<vector<int>> &bindingmap, vector<vector<Point3s>> &gradient, double K, list<BondLengthobj> &blengthobj);
     void MCsetangleobj(const vector<vector<int>> &bindingmap, vector<vector<Point3s>> &gradient, double K, list<BondAngleobj> &bangleobj);
     
+    //void MCsetdangleobj(const vector<vector<int>> &bindingmap, vector<vector<Point3s>> &gradient, double K, list<BondDihedralobj> &bangleobj);
+    void MCsetdangleobj(const vector<vector<int>> &bindingmap, vector<vector<Point3s>> &gradient, double K, list<BondDihedralobj> &bangleobj);
+
+    void MCsetdsugarangleobj(const vector<vector<int>> &bindingmap, vector<vector<Point3s>> &gradient, double K, list<MultiBondDihedralobj> &multibangleobj);
+
     //void MCsetstackingobj(vector<vector<Point3s>> &gradient, const vector<vector<int>> &stackmap, double K, list<Stackingobj> &stackobj);
     double getstackenergy(const int &stack_base1, const int &stack_base2, const int &sttype, vector<double> &templateenergies);
     double getstackenergy(const int &stack_base1, const int &stack_base2, const int &sttype, vector<double> &templateenergies, int &mintempidx, int &minorder);
@@ -968,25 +1015,27 @@ public:
     void selectstacktemplateidx(const int &stack_base1, const int &stack_base2, const int &sttype, const vector<double> &templateenergies, int &templateidx, int &temporder);
     void MCselectstackfrag(vector<vector<Point3s>> &gradient, int res1, int res2, const int &sttype, int &minfragidx, double &minrmsd, int &baseorder, double K, list<Stackingobj> &stackobj);
 
-    void MCselectstackfrag(vector<vector<Point3s>> &gradient, int res1, int res2, const int &sttype, int stidx, vector<vector<int>> &indices, vector<vector<int>> &orders, double K, list<Stackingobj> &stackobj);
-    void MCsetstackingobj(vector<vector<Point3s>> &gradient, const vector<vector<double>> &stackmap, vector<vector<int>> &indices, vector<vector<int>> &orders, double K, list<Stackingobj> &stackobj);
-    double MClinesearch(const vector<vector<Point3s>> &gradient, list<BondLengthobj> &blengthobj, list<BondAngleobj> &bangleobj, list<BondDihedralobj> &dihedralobj, list<BasePairobj> &bplaneobj, list<BasePairobj> &basepairobj, list<BPdistobj> &bpdistobj, list<Stackingobj> &stackobj, list<StackGeoobjMC> &stackgeoobj, list<InitPosobj> &binitobj, list<InitPairobj> &binitdistobj, list<InitPairobj> &btemplatedistobj, list<TElectrobj> &telecteobj, list<LennardsJobj> &ljobj, list<Hbondobj> &hbondobj, list<Hbond2hydobj> &hbondbpobj, list<Clashobj> &clashobj, list<SingleNtTemplateobjMC> &nttempobj, const vector<bool> &moveresidues, double alpha0, double rho, double beta);
+    void MCselectstackfrag(vector<vector<Point3s>> &gradient, int res1, int res2, const int &sttype, int stidx, double K, list<Stackingobj> &stackobj);
+    void MCsetstackingobj(vector<vector<Point3s>> &gradient, const vector<vector<double>> &stackmap, double K, list<Stackingobj> &stackobj);
+    double MClinesearch(const vector<vector<Point3s>> &gradient, list<BondLengthobj> &blengthobj, list<BondAngleobj> &bangleobj, list<BondDihedralobj> &dihedralobj, list<MultiBondDihedralobj> &sugardihedralobj, list<BasePairobj> &bplaneobj, list<BasePairobj> &basepairobj, list<BPdistobj> &bpdistobj, list<Stackingobj> &stackobj, list<StackGeoobjMC> &stackgeoobj, list<InitPosobj> &binitobj, list<InitPairobj> &binitdistobj, list<InitPairobj> &btemplatedistobj, list<TElectrobj> &telecteobj, list<LennardsJobj> &ljobj, list<Hbondobj> &hbondobj, list<Hbond2hydobj> &hbondbpobj, list<Clashobj> &clashobj, list<SingleNtTemplateobjMC> &nttempobj, const vector<bool> &moveresidues, double alpha0, double rho, double beta);
 
-    double MCgoldenelectionsearch(const vector<vector<Point3s>> &gradient, list<BondLengthobj> &blengthobj, list<BondAngleobj> &bangleobj, list<BondDihedralobj> &dihedralobj, list<BasePairobj> &bplaneobj, list<BasePairobj> &basepairobj, list<BPdistobj> &bpdistobj, list<Stackingobj> &stackobj, list<StackGeoobjMC> &stackgeoobj, list<InitPosobj> &binitobj, list<InitPairobj> &binitdistobj, list<InitPairobj> &btemplatedistobj, list<TElectrobj> &telecteobj, list<LennardsJobj> &ljobj, list<Hbondobj> &hbondobj, list<Hbond2hydobj> &hbondbpobj, list<Clashobj> &clashobj, list<SingleNtTemplateobjMC> &nttempobj, const vector<bool> &moveresidues);
+    double MCgoldenelectionsearch(const vector<vector<Point3s>> &gradient, list<BondLengthobj> &blengthobj, list<BondAngleobj> &bangleobj, list<BondDihedralobj> &dihedralobj, list<MultiBondDihedralobj> &sugardihedralobj, list<BasePairobj> &bplaneobj, list<BasePairobj> &basepairobj, list<BPdistobj> &bpdistobj, list<Stackingobj> &stackobj, list<StackGeoobjMC> &stackgeoobj, list<InitPosobj> &binitobj, list<InitPairobj> &binitdistobj, list<InitPairobj> &btemplatedistobj, list<TElectrobj> &telecteobj, list<LennardsJobj> &ljobj, list<Hbondobj> &hbondobj, list<Hbond2hydobj> &hbondbpobj, list<Clashobj> &clashobj, list<SingleNtTemplateobjMC> &nttempobj, const vector<bool> &moveresidues);
 
-    double getbaseenergy(const int &nt_base, vector<double> &templateenergies, int &templateidx);
+    //double getbaseenergy(const int &nt_base, vector<double> &templateenergies, int &templateidx);
+    double getbaseenergy(const int &nt_base, int &templateidx);
     void selectnttemplateidx(const int &nt_base, const vector<double> &templateenergies, int &templateidx);
 
     void selectbptemplateidx(const int &bp_base1, const int &bp_base2, const vector<double> &templateenergies, int &templateidx);
-    double getbasepairenergy(const int &bp_base1, const int &bp_base2, vector<double> &templateenergies, int &templateidx);
+    //double getbasepairenergy(const int &bp_base1, const int &bp_base2, vector<double> &templateenergies, int &templateidx);
+    double getbasepairenergy(const int &bp_base1, const int &bp_base2, int &templateidx);
     void MCsetbaseplaneobj(vector<vector<Point3s>> &gradient, vector<vector<Point3s*>> &BaseAtomPtrslist, vector<vector<Point3s*>> &BaseAtomgradlist, const vector<bool> &moveresidues, const double &K, list<BasePairobj> &bplaneobj);
     void MCsetbasepairobj(vector<vector<Point3s>> &gradient, const vector<vector<int>> &basepairlist, const vector<vector<int>> &noncbasepairlist, const vector<double> &basepairscorelist, const vector<double> &noncbasepairscorelist, vector<vector<Point3s*>> &AtomPtrslist, vector<vector<Point3s*>> &Atomgradlist, const double &K, list<BasePairobj> &bpobj);
-    void MCsetbpdistobj(vector<vector<Point3s>> &gradient, const vector<vector<int>> &basepairlist, vector<vector<int>> &indices, double K, list<BPdistobj> &stackobj);
+    void MCsetbpdistobj(vector<vector<Point3s>> &gradient, const vector<vector<int>> &basepairlist, const vector<double> &basepairscorelist, double K, list<BPdistobj> &stackobj);
     void MCsetNonbondedobj(vector<vector<Point3s>> &gradient, const vector<vector<int>> &contactmap, const vector<vector<int>> &bindingmap, const vector<vector<int>> &cbasepairlist, const vector<vector<int>> &noncbasepairlist, const vector<double> &basepairscorelist, const vector<double> &noncbasepairscorelist,list<TElectrobj> &telecteobj, list<LennardsJobj> &ljobj, list<Hbondobj> &hbondobj, list<Hbond2hydobj> &hbondbpobj, list<Clashobj> &clashobj, map<string, double> &enecoeff);
     void MCupdatelbfgsfeatures(const vector<vector<Point3s>> &refinestr_temp_prev, const vector<vector<Point3s>> &grad, const vector<vector<Point3s>> &grad_prev, deque<vector<vector<Point3s>>> &s_list, deque<vector<vector<Point3s>>> &y_list, deque<double> &rho_list, const vector<bool> &movenodeinfo, int m);
     void MCupdatestructure(const vector<vector<Point3s>> &gradient, double step_size, const vector<bool> &moveresidues);
-    double MClinesearch(const vector<vector<Point3s>> &gradient, list<BondLengthobj> &blengthobj, list<BondAngleobj> &bangleobj, list<BondDihedralobj> &dihedralobj, list<BasePairobj> &bplaneobj, list<BasePairobj> &basepairobj, list<BPdistobj> &bpdistobj, list<StackTemplateobj2MC> &stackobj, list<StackGeoobjMC> &stackgeoobj, list<InitPosobj> &binitobj, list<InitPairobj> &binitdistobj, list<InitPairobj> &btemplatedistobj, list<TElectrobj> &telecteobj, list<LennardsJobj> &ljobj, list<Hbondobj> &hbondobj, list<Hbond2hydobj> &hbondbpobj, list<Clashobj> &clashobj, list<SingleNtTemplateobjMC> &nttempobj, const vector<bool> &moveresidues, double alpha0, double rho, double beta);
-    double MCgoldenelectionsearch(const vector<vector<Point3s>> &gradient, list<BondLengthobj> &blengthobj, list<BondAngleobj> &bangleobj, list<BondDihedralobj> &dihedralobj, list<BasePairobj> &bplaneobj, list<BasePairobj> &basepairobj, list<BPdistobj> &bpdistobj, list<StackTemplateobj2MC> &stackobj, list<StackGeoobjMC> &stackgeoobj, list<InitPosobj> &binitobj, list<InitPairobj> &binitdistobj, list<InitPairobj> &btemplatedistobj, list<TElectrobj> &telecteobj, list<LennardsJobj> &ljobj, list<Hbondobj> &hbondobj, list<Hbond2hydobj> &hbondbpobj, list<Clashobj> &clashobj, list<SingleNtTemplateobjMC> &nttempobj, const vector<bool> &moveresidues);
+    double MClinesearch(const vector<vector<Point3s>> &gradient, list<BondLengthobj> &blengthobj, list<BondAngleobj> &bangleobj, list<BondDihedralobj> &dihedralobj, list<MultiBondDihedralobj> &sugardihedralobj, list<BasePairobj> &bplaneobj, list<BasePairobj> &basepairobj, list<BPdistobj> &bpdistobj, list<StackTemplateobj2MC> &stackobj, list<StackGeoobjMC> &stackgeoobj, list<InitPosobj> &binitobj, list<InitPairobj> &binitdistobj, list<InitPairobj> &btemplatedistobj, list<TElectrobj> &telecteobj, list<LennardsJobj> &ljobj, list<Hbondobj> &hbondobj, list<Hbond2hydobj> &hbondbpobj, list<Clashobj> &clashobj, list<SingleNtTemplateobjMC> &nttempobj, const vector<bool> &moveresidues, double alpha0, double rho, double beta);
+    double MCgoldenelectionsearch(const vector<vector<Point3s>> &gradient, list<BondLengthobj> &blengthobj, list<BondAngleobj> &bangleobj, list<BondDihedralobj> &dihedralobj, list<MultiBondDihedralobj> &sugardihedralobj, list<BasePairobj> &bplaneobj, list<BasePairobj> &basepairobj, list<BPdistobj> &bpdistobj, list<StackTemplateobj2MC> &stackobj, list<StackGeoobjMC> &stackgeoobj, list<InitPosobj> &binitobj, list<InitPairobj> &binitdistobj, list<InitPairobj> &btemplatedistobj, list<TElectrobj> &telecteobj, list<LennardsJobj> &ljobj, list<Hbondobj> &hbondobj, list<Hbond2hydobj> &hbondbpobj, list<Clashobj> &clashobj, list<SingleNtTemplateobjMC> &nttempobj, const vector<bool> &moveresidues);
     
     bool fmovementfrag(double oldenergy, double &newenergy);
     int selecttargetfrag(const int &fraglen);
@@ -995,12 +1044,12 @@ public:
     void setadjfragflap(int istart, int iend);
 
     void MCstack_superimpose(int res1, int res2, char base1, char base2, const int &sttype, double &rmsd, const int &order, const int &tmpidx);
-    void MCselectstackfrag(vector<vector<Point3s>> &gradient, int res1, int res2, const int &sttype, int stidx, vector<vector<int>> &indices, vector<vector<int>> &orders, double K, list<StackTemplateobj2MC> &stackobj);
-    void MCsetstackingobj(vector<vector<Point3s>> &gradient, const vector<vector<double>> &stackmap, vector<vector<int>> &indices, vector<vector<int>> &orders, double K, list<StackTemplateobj2MC> &stackobj);
+    void MCselectstackfrag(vector<vector<Point3s>> &gradient, int res1, int res2, const int &sttype, int stidx, double K, list<StackTemplateobj2MC> &stackobj);
+    void MCsetstackingobj(vector<vector<Point3s>> &gradient, const vector<vector<double>> &stackmap, double K, list<StackTemplateobj2MC> &stackobj);
     void MCsetstackinggeoobj(vector<vector<Point3s>> &gradient, const vector<vector<double>> &stackmap, vector<vector<Point3s*>> &basestackptrsA, vector<vector<Point3s*>> &basestackptrsB, vector<vector<Point3s*>> basestackgradA, vector<vector<Point3s*>> basestackgradB, double K, list<StackGeoobjMC> &stackobj);
 
     void MCbp_superimpose(int res1, int res2, char base1, char base2, double &rmsd, const int &tmpidx);
-    void MCselectbpfrag(vector<vector<Point3s>> &gradient, int res1, int res2, int bpidx, vector<vector<int>> &indices, double K, list<BPdistobj> &bpdistobj);
+    void MCselectbpfrag(vector<vector<Point3s>> &gradient, int res1, int res2, double K, list<BPdistobj> &bpdistobj);
 
     void MCsetnttemplateobj(vector<vector<Point3s>> &gradient, vector<vector<int>> &indices, double K, list<SingleNtTemplateobjMC> &nttempobj);
     void MCselectntfrag(vector<vector<Point3s>> &gradient, int res, int ntidx, vector<vector<int>> &indices, double K, list<SingleNtTemplateobjMC> &nttempobj);
@@ -1026,6 +1075,10 @@ public:
     bool fmovementloopfrag(double oldenergy, double &newenergy);
     bool replacentfrag(int &base, int &selected_fragidx);
     void setloopntfragflap(int istart, int iend);
+
+    //movement for perturbation
+
+    bool fmovementPerturbate(double oldenergy, double &newenergy);
 
     //coord2param
     void coord2params(const Point3s &tmp1, const Point3s &tmp2, const Point3s &tmp3, const Point3s &tmp4, float &len, float &ang, float &dih);
@@ -1068,14 +1121,14 @@ void LoadParams(string pramdir);
 double MonteCarloSimulationProcess(ModelUnit &pdb_entry, const size_t c, const string &pramdir,
     const vector<pair<double,vector<size_t>>> &bp_vec, const map<int, vector<pair<int, int>>> &loopnts, const vector<pair<double,vector<size_t>>> &noncbp_vec,
     const vector<vector<int>> &stemconnectnts, const map<int, vector<vector<vector<int>>>> &connectnts, const vector<vector<pair<int, double>>> &stmap,
-    const FragmentStructure &inputtedstrall, const vector<vector<bool>> &inputtedstrallflag, const vector<double> &score_vec,
+    const FragmentStructure &inputtedstrall, const vector<vector<bool>> &inputtedstrallflag, const vector<double> &init_weight,
     const vector<FragmentStructure> &templatestrall, const vector<vector<vector<bool>>> &templatestrallflag,
     const ExtParams &extparameters, vector<vector<vector<double>>> &hydrogencoords, double maxtime, const string &outdir, const bool &logflag, const int option=0);
 
 double MonteCarloSimulationProcess(ModelUnit &pdb_entry, const string &pramdir, 
     const vector<pair<double,vector<size_t>>> &bp_vec, const map<int, vector<pair<int, int>>> &loopnts, const vector<pair<double,vector<size_t>>> &noncbp_vec,
     const vector<vector<int>> &stemconnectnts, const map<int, vector<vector<vector<int>>>> &connectnts, const vector<vector<pair<int, double>>> &stmap,
-    const FragmentStructure &inputtedstrall, const vector<vector<bool>> &inputtedstrallflag, const vector<double> &score_vec,
+    const FragmentStructure &inputtedstrall, const vector<vector<bool>> &inputtedstrallflag, const vector<double> &init_weight,
     const vector<FragmentStructure> &templatestrall, const vector<vector<vector<bool>>> &templatestrallflag,
     const ExtParams &extparameters, vector<vector<vector<double>>> &hydrogencoords, double maxtime, const string &outdir, const bool &logflag, const int option=0);
 

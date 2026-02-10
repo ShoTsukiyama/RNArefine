@@ -66,9 +66,10 @@ int main(int argc,char **argv)
     check_targetpdb(pdb_entry);
     string seq=getseq(pdb_entry);
 
-    string execfilePath=fs::canonical(fs::path(argv[0])).string();
-	string basePath=fs::path(execfilePath).parent_path().string();
-	string paramdir=fs::canonical(fs::path(basePath+"/../init_param")).string();
+    //string execfilePath=fs::canonical(fs::path(argv[0])).string();
+	//string basePath=fs::path(execfilePath).parent_path().string();
+	//string paramdir=fs::canonical(fs::path(basePath+"/../init_param")).string();
+    string paramdir=std::string(RNAREFINE_DATA_PATH) +"/init_param";
 
     /*
     if(refinetype == "global"){
@@ -171,8 +172,10 @@ int main(int argc,char **argv)
     map<string, vector<vector<vector<double>>>> bpdistmap;
     get_distmap(ideal_rna["bp"], bpdistmap);
 
-    vector<double> score_vec;
-    get_score_map(seq, bp_vec, score_vec);
+    vector<double> init_weight;
+    //vector<double> nt_weight;
+    //get_score_map(seq, bp_vec, score_vec);
+    get_edge_loop(bp_vec, noncbp_vec, seq.size(), init_weight);
 
     ExtParams extparameters;
     FragmentStructure inputtedstrall;
@@ -186,25 +189,10 @@ int main(int argc,char **argv)
     auto end_pre = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed_pre = end_pre - start_pre;
     baseiclog.log("Processing time: " + to_string(elapsed_pre.count()) + " seconds\n");
-
     standardize_pdb_order(pdb_entry);
 
     string remark="";
     write_pdb_structure((outdir+"/superimpose.pdb").c_str(), pdb_entry, remark);
-
-    //baseiclog.log("Saving to " +outdir+"/full_atomic.pdb\n\n");
-    //write_pdb_structure((outdir+"/full_atomic.pdb").c_str(),pdb_entry);
-    
-    /*
-    baseiclog.log("Pre-energy-based refinement...\n");
-    auto start_pene = std::chrono::high_resolution_clock::now();
-    PreEnergyRefine(pdb_entry, ideal_rna, stackmap, stackdistmap, stembps, loopnts, connectnts, extparameters);
-    auto end_pene = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed_pene = end_pene - start_pene;
-    baseiclog.log("Processing time: " + to_string(elapsed_pene.count()) + " seconds\n");
-    //baseiclog.log("Saving to " +outdir+"/pre_refine.pdb\n\n");
-    //write_pdb_structure((outdir+"/pre_refine.pdb").c_str(),pdb_entry);
-    */
 
     int iter=1;
     if(option>=1){
@@ -217,11 +205,10 @@ int main(int argc,char **argv)
         
         vector<vector<vector<double>>> hydrogencoords;
         if(option == 1 || option == 3){    
-            baseiclog.log("REMC-based refinement...\n");
-            baseiclog.log("MC refinement...\n");
+            baseiclog.log("MC-based refinement...\n");
             //double m_maxtime = 7200;
             auto start_remc = std::chrono::high_resolution_clock::now();
-            final_energy=MonteCarloSimulationProcess(pdb_entry, paramdir+"/MC", bp_vec, loopnts, noncbp_vec, stemconnectnts, connectnts, stackmap, inputtedstrall, inputtedstrallflag, score_vec, templatestrall, templatestrallflag, extparameters, hydrogencoords, m_maxtime, outdir, logflag, option);
+            final_energy=MonteCarloSimulationProcess(pdb_entry, paramdir+"/MC", bp_vec, loopnts, noncbp_vec, stemconnectnts, connectnts, stackmap, inputtedstrall, inputtedstrallflag, init_weight, templatestrall, templatestrallflag, extparameters, hydrogencoords, m_maxtime, outdir, logflag, option);
             auto end_remc = std::chrono::high_resolution_clock::now();
             std::chrono::duration<double> elapsed_remc = end_remc - start_remc;
             baseiclog.log("Processing time: " + to_string(elapsed_remc.count()) + " seconds, Final energy: " + to_string(final_energy) + "\n");
@@ -230,10 +217,10 @@ int main(int argc,char **argv)
         }
 
         if(option == 2 || option == 3){
-            baseiclog.log("Energy-based refinement...\n");
+            baseiclog.log("L-BFGS-based refinement...\n");
             //double e_maxtime = 3600;
             auto start_ene = std::chrono::high_resolution_clock::now();
-            StructureOptimization(pdb_entry, ideal_rna, inputtedstrall, inputtedstrallflag, templatestrall, templatestrallflag, bp_vec, loopnts, noncbp_vec, stemconnectnts, connectnts, stackmap, bpdistmap, stackdistmap, extparameters, hydrogencoords, e_maxtime, outdir, logflag, option);
+            StructureOptimization(pdb_entry, ideal_rna, inputtedstrall, inputtedstrallflag, templatestrall, templatestrallflag, bp_vec, loopnts, noncbp_vec, stemconnectnts, connectnts, stackmap, bpdistmap, stackdistmap, extparameters, init_weight, hydrogencoords, e_maxtime, outdir, logflag, option);
             auto end_ene = std::chrono::high_resolution_clock::now();
             std::chrono::duration<double> elapsed_ene = end_ene - start_ene;
             baseiclog.log("Processing time: " + to_string(elapsed_ene.count()) + " seconds\n");

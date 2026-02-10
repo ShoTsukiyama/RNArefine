@@ -267,7 +267,7 @@ bool MonteCarloSimulation::fmovementfrag(double oldenergy, double &newenergy)
 	Point3s coordA, coordB;
 
 	int minflaglen=2;
-	int maxflaglen=min(5, numbb);
+	int maxflaglen=min(7, numbb);
 
 	int fraglen=Random()*(maxflaglen-minflaglen+1)+minflaglen;
 
@@ -292,11 +292,15 @@ bool MonteCarloSimulation::fmovementfrag(double oldenergy, double &newenergy)
 	vector<vector<double>> stackingmap(numbb, vector<double>(numbb, 0));
 	vector<vector<int>> basepairmap(numbb, vector<int>(numbb, 0));
 
-	for(i=stpos;i<edpos;i++){
+
+
+	for(i=stpos;i<edpos;i++)
+	{
 		base = refinestr_temp[i].aaa;
 
 		initstructure[i].resize(AccAtomParamNum[base][3]);
-		for(j=0; j<AccAtomParamNum[base][3];j++){
+		for(j=0;j<AccAtomParamNum[base][3];j++)
+		{
 			initstructure[i][j].x=refinestr_temp[i].ptv[j].x;
 			initstructure[i][j].y=refinestr_temp[i].ptv[j].y;
 			initstructure[i][j].z=refinestr_temp[i].ptv[j].z;
@@ -349,7 +353,7 @@ bool MonteCarloSimulation::fmovementfrag(double oldenergy, double &newenergy)
 
 			if(noncbpmap[i][j] > 0){
 				vector<int> temp{min(i, j), max(i, j)};
-
+				
 				if (find(noncbasepairlist.begin(), noncbasepairlist.end(), temp) == noncbasepairlist.end()) {
 					noncbasepairlist.push_back({i, j});
 					noncbasepairscorelist.push_back(noncbpmap[i][j]);
@@ -359,7 +363,7 @@ bool MonteCarloSimulation::fmovementfrag(double oldenergy, double &newenergy)
 			}
 
 			if(cbpmap[i][j] > 0){
-				vector<int> temp{min(i, j), max(i, j) };
+				vector<int> temp{min(i, j), max(i, j)};
 
 				if (find(basepairlist.begin(), basepairlist.end(), temp) == basepairlist.end()) {
 					basepairlist.push_back({i, j});
@@ -367,7 +371,6 @@ bool MonteCarloSimulation::fmovementfrag(double oldenergy, double &newenergy)
 					//bp_k = j;
 					bp_ks.push_back(j);
 				}
-
 			}
 		}
 
@@ -394,34 +397,34 @@ bool MonteCarloSimulation::fmovementfrag(double oldenergy, double &newenergy)
 				coordA.x = refinestr_temp[bp_k].ptv[8].x;
 				coordA.y = refinestr_temp[bp_k].ptv[8].y;
 				coordA.z = refinestr_temp[bp_k].ptv[8].z;
-				for(int j=0; j<numbb;j++){
+				for(int l=0; l<numbb;l++){
 					//if(k == j) continue;
 					Point3s rp;
-					rp.x = refinestr_temp[j].ptv[8].x - coordA.x;
-					rp.y = refinestr_temp[j].ptv[8].y - coordA.y;
-					rp.z = refinestr_temp[j].ptv[8].z - coordA.z;
+					rp.x = refinestr_temp[l].ptv[8].x - coordA.x;
+					rp.y = refinestr_temp[l].ptv[8].y - coordA.y;
+					rp.z = refinestr_temp[l].ptv[8].z - coordA.z;
 
 					leng = rp.x*rp.x+rp.y*rp.y+rp.z*rp.z;
 
 					//if(leng < GLOBALCUTOFF_SQR){
-					contactmap[bp_k][j] = 1;
-					contactmap[j][bp_k] = 1;
+					contactmap[bp_k][l] = 1;
+					contactmap[l][bp_k] = 1;
 					//}
 					
-					if(bp_k == j){
+					if(bp_k == l){
 						if(leng < CUTOFF_SQR+5.0){
-							contactmap[bp_k][j] = 2;
-							contactmap[j][bp_k] = 2;
+							contactmap[bp_k][l] = 2;
+							contactmap[l][bp_k] = 2;
 						}
 					}else{
 						if(leng < CUTOFF_SQR+10.0){
-							contactmap[bp_k][j] = 2;
-							contactmap[j][bp_k] = 2;
+							contactmap[bp_k][l] = 2;
+							contactmap[l][bp_k] = 2;
 						}
 					}
 
-					stackingmap[bp_k][j] = stmap[bp_k][j];
-					stackingmap[j][bp_k] = stmap[j][bp_k];
+					stackingmap[bp_k][l] = stmap[bp_k][l];
+					stackingmap[l][bp_k] = stmap[l][bp_k];
 				}
 			}
 		}
@@ -449,109 +452,68 @@ bool MonteCarloSimulation::fmovementfrag(double oldenergy, double &newenergy)
 				coordA.x = refinestr_temp[noncbp_k].ptv[8].x;
 				coordA.y = refinestr_temp[noncbp_k].ptv[8].y;
 				coordA.z = refinestr_temp[noncbp_k].ptv[8].z;
-				for(int j=0; j<numbb;j++){
+				for(int l=0; l<numbb;l++)
+				{
 					//if(k == j) continue;
 					Point3s rp;
-					rp.x = refinestr_temp[j].ptv[8].x - coordA.x;
-					rp.y = refinestr_temp[j].ptv[8].y - coordA.y;
-					rp.z = refinestr_temp[j].ptv[8].z - coordA.z;
+					rp.x = refinestr_temp[l].ptv[8].x - coordA.x;
+					rp.y = refinestr_temp[l].ptv[8].y - coordA.y;
+					rp.z = refinestr_temp[l].ptv[8].z - coordA.z;
 
 					leng = rp.x*rp.x+rp.y*rp.y+rp.z*rp.z;
 
 					//if(leng < GLOBALCUTOFF_SQR){
-					contactmap[noncbp_k][j] = 1;
-					contactmap[j][noncbp_k] = 1;
+					contactmap[noncbp_k][l] = 1;
+					contactmap[l][noncbp_k] = 1;
 					//}
 					
-					if(noncbp_k == j){
+					if(noncbp_k == l){
 						if(leng < CUTOFF_SQR+5.0){
-							contactmap[noncbp_k][j] = 2;
-							contactmap[j][noncbp_k] = 2;
+							contactmap[noncbp_k][l] = 2;
+							contactmap[l][noncbp_k] = 2;
 						}
 					}else{
 						if(leng < CUTOFF_SQR+10.0){
-							contactmap[noncbp_k][j] = 2;
-							contactmap[j][noncbp_k] = 2;
+							contactmap[noncbp_k][l] = 2;
+							contactmap[l][noncbp_k] = 2;
 						}
 					}
 
-					stackingmap[noncbp_k][j] = stmap[noncbp_k][j];
-					stackingmap[j][noncbp_k] = stmap[j][noncbp_k];
+					stackingmap[noncbp_k][l] = stmap[noncbp_k][l];
+					stackingmap[l][noncbp_k] = stmap[l][noncbp_k];
 				}
 			}
 		}
-
-		/*
-		vector<vector<int>> ks;
-		for(j=0;j<stacklist.size();j++){
-			if(i == stacklist[j][0]){
-				k=stacklist[j][1];
-				ks.push_back({i,k});
-			}
-			else if(i == stacklist[j][1]){
-				k=stacklist[j][0];
-				ks.push_back({i,k});
-			}
-		}
-
-		for(int l=0;l<ks.size();l++){
-			k=ks[l][1];
-
-			pbase=refinestr_temp[k].aaa;
-			initstructure[k].resize(AccAtomParamNum[pbase][3]);
-			for(int m=0; m<AccAtomParamNum[pbase][3];m++){
-				initstructure[k][m].x=refinestr_temp[k].ptv[m].x;
-				initstructure[k][m].y=refinestr_temp[k].ptv[m].y;
-				initstructure[k][m].z=refinestr_temp[k].ptv[m].z;
-			}
-
-			if(k - 1 >= 0) bindingmap[k - 1][k] = 1;
-			if(k + 1 < numbb) bindingmap[k][k + 1] = 1;
-			bindingmap[k][k] = 2;
-			moveresidues[k]=true;
-			updateresidues[k]=true;
-			if(k+1 < numbb) updateresidues[k+1]=true;
-
-			coordA.x = refinestr_temp[k].ptv[8].x;
-			coordA.y = refinestr_temp[k].ptv[8].y;
-			coordA.z = refinestr_temp[k].ptv[8].z;
-			for(int j=0; j<numbb;j++){
-				//if(k == j) continue;
-				Point3s rp;
-				rp.x = refinestr_temp[j].ptv[8].x - coordA.x;
-				rp.y = refinestr_temp[j].ptv[8].y - coordA.y;
-				rp.z = refinestr_temp[j].ptv[8].z - coordA.z;
-
-				leng = rp.x*rp.x+rp.y*rp.y+rp.z*rp.z;
-
-				if(leng < GLOBALCUTOFF_SQR){
-					contactmap[k][j] = 1;
-					contactmap[j][k] = 1;
-				}
-				
-				if(k == j){
-					if(leng < CUTOFF_SQR+5.0){
-						contactmap[k][j] = 2;
-						contactmap[j][k] = 2;
-					}
-				}else{
-					if(leng < CUTOFF_SQR+10.0){
-						contactmap[k][j] = 2;
-						contactmap[j][k] = 2;
-					}
-				}
-
-				stackingmap[k][j] = stmap[k][j];
-				stackingmap[j][k] = stmap[j][k];
-			}
-		}
-		*/
 	}
 
-	//cout<<"=============="<<endl;
-	//cout<<target_stack_idx << "-" << stack_base1 << "-" << stack_base2 << "-" << stacktype<<endl;
+	double randval = Random();
+	int bp_base1, bp_base2;
+	//vector<int> bpnts;
+	int templateidx;
 
-	MonteCarloSimulation::MCfragmentoptimization(initstructure, bindingmap, moveresidues, contactmap, stackingmap, basepairlist, noncbasepairlist, basepairscorelist, noncbasepairscorelist);
+	
+	//if(randval > 0.5){
+	for(i=0;i<basepairlist.size();i++)
+	{
+		bp_base1=basepairlist[i][0];
+		bp_base2=basepairlist[i][1];
+
+		//cout<<bp_base1 << "-" << bp_base2 << endl;
+
+		//bpnts.push_back(bp_base1);
+		//bpnts.push_back(bp_base2);
+
+		double minrmsd = getbasepairenergy(bp_base1, bp_base2, templateidx);
+
+		//cout<<bp_base1 << "-" << bp_base2 << "-" << minrmsd<<endl;
+
+		if(minrmsd > 1.0) continue;
+		replacebpfrag(bp_base1, bp_base2, templateidx);
+		param2coordhydrogen(refinestr_temp,bp_base1,bp_base1+1);
+		param2coordhydrogen(refinestr_temp,bp_base2,bp_base2+1);
+	}
+	
+	MonteCarloSimulation::MCfragmentoptimization(initstructure, bindingmap, moveresidues, contactmap, stackingmap, basepairlist, noncbasepairlist, basepairscorelist, noncbasepairscorelist, true);
 
 
 	int istart=stpos-1;
@@ -571,60 +533,6 @@ bool MonteCarloSimulation::fmovementfrag(double oldenergy, double &newenergy)
 			setfragflap(k,k+1);
 		}
 	}
-
-	/*
-	coord2parambb(refinestr_temp,istart,iend);
-	coord2paramsugar(refinestr_temp,istart,iend);
-	coord2parambase(refinestr_temp,istart,iend);
-	coord2paramhydrogen(refinestr_temp,istart,iend);
-	coord2addparamhydrogen(refinestr_temp,istart,iend);
-	coord2paramadd(refinestr_temp,istart,iend);
-	setadjstackfragflap(istart,iend);
-
-	vector<int> processnt; 
-	for(i=0;i<basepairlist.size();i++){
-		k=basepairlist[i][1];
-		coord2parambb(refinestr_temp,k,k+1);
-		coord2paramsugar(refinestr_temp,k,k+1);
-		coord2parambase(refinestr_temp,k,k+1);
-		coord2paramhydrogen(refinestr_temp,k,k+1);
-		coord2addparamhydrogen(refinestr_temp,k,k+1);
-		coord2paramadd(refinestr_temp,k,k+1);
-		setadjstackfragflap(k,k+1);
-		processnt.push_back(k);
-
-
-		if(k-1 >= 0){
-			auto it = std::find(processnt.begin(), processnt.end(), k-1);
-			if (it == processnt.end()) {
-				j=k-1;
-				coord2parambb(refinestr_temp,j,j+1);
-				coord2paramsugar(refinestr_temp,j,j+1);
-				coord2parambase(refinestr_temp,j,j+1);
-				coord2paramhydrogen(refinestr_temp,j,j+1);
-				coord2addparamhydrogen(refinestr_temp,j,j+1);
-				coord2paramadd(refinestr_temp,j,j+1);
-				setadjstackfragflap(j,j+1);
-				processnt.push_back(j);
-			}
-		}
-
-		if(k+1 < numbb){
-			auto it = std::find(processnt.begin(), processnt.end(), k+1);
-			if (it == processnt.end()) {
-				j=k+1;
-				coord2parambb(refinestr_temp,j,j+1);
-				coord2paramsugar(refinestr_temp,j,j+1);
-				coord2parambase(refinestr_temp,j,j+1);
-				coord2paramhydrogen(refinestr_temp,j,j+1);
-				coord2addparamhydrogen(refinestr_temp,j,j+1);
-				coord2paramadd(refinestr_temp,j,j+1);
-				setadjstackfragflap(j,j+1);
-				processnt.push_back(j);
-			}
-		}
-	}
-	*/
 	
 
 	newenergy = calcenergymain();

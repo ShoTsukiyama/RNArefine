@@ -68,7 +68,8 @@ void MonteCarloSimulation::setloopntfragflap(int istart, int iend)
 	}
 }
 
-double MonteCarloSimulation::getbaseenergy(const int &nt_base, vector<double> &templateenergies, int &templateidx){
+//double MonteCarloSimulation::getbaseenergy(const int &nt_base, vector<double> &templateenergies, int &templateidx){
+double MonteCarloSimulation::getbaseenergy(const int &nt_base, int &templateidx){
 	int i,j;
 	int atom;
 	int count;
@@ -83,21 +84,21 @@ double MonteCarloSimulation::getbaseenergy(const int &nt_base, vector<double> &t
 	char base;
 	base = refinestr_temp[nt_base].aaa;
 
-    static map<char, vector<int>> targetatoms={
-		{'A',{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21}},
-        {'C',{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19}},
-        {'G',{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22}},
-        {'U',{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19}}
+	static map<char, vector<int>> targetatoms_sup={
+		{'A',{0,1,2,3,4,5}},
+		{'C',{0,1,2,3,4,5}},
+		{'G',{0,1,2,3,4,5}},
+		{'U',{0,1,2,3,4,5}}
 	};
 
-	vector<vector<double> > xyz_list1(targetatoms[base].size(), vector<double>(3,0));
-    vector<vector<double> > xyz_list2(targetatoms[base].size(), vector<double>(3,0));
+	vector<vector<double> > xyz_list1(targetatoms_sup[base].size(), vector<double>(3,0));
+    vector<vector<double> > xyz_list2(targetatoms_sup[base].size(), vector<double>(3,0));
 
 	for(i=0;i<LOOPNTTEMPLATE[base].size();i++)
 	{
 		count = 0;
-		for(j=0; j<targetatoms[base].size();j++){
-			atom=targetatoms[base][j];
+		for(j=0; j<targetatoms_sup[base].size();j++){
+			atom=targetatoms_sup[base][j];
 
 			xyz_list1[count][0]=refinestr_temp[nt_base].ptv[atom].x;
 			xyz_list1[count][1]=refinestr_temp[nt_base].ptv[atom].y;
@@ -112,8 +113,8 @@ double MonteCarloSimulation::getbaseenergy(const int &nt_base, vector<double> &t
 
 		rmsd=0;
 		count=0;
-		for(j=0; j<targetatoms[base].size();j++){
-			atom=targetatoms[base][j];
+		for(j=0; j<targetatoms_sup[base].size();j++){
+			atom=targetatoms_sup[base][j];
 			bf.Transform(xyz_list2[count],RotMatix,TranVect,xyztmp);
 			vec.x=refinestr_temp[nt_base].ptv[atom].x-xyztmp[0];
 			vec.y=refinestr_temp[nt_base].ptv[atom].y-xyztmp[1];
@@ -149,41 +150,57 @@ bool MonteCarloSimulation::replacentfrag(int &base, int &selected_fragidx)
 	vector<double> atom_coord;
 	BasicFunc bf;
 
+	static map<char, vector<int>> targetatoms_sup={
+		{'A',{0,1,2,3,4,5}},
+		{'C',{0,1,2,3,4,5}},
+		{'G',{0,1,2,3,4,5}},
+		{'U',{0,1,2,3,4,5}}
+	};
+	
+	static map<char, vector<int>> targetatoms={
+		{'A',{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21}},
+		{'C',{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19}},
+		{'G',{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22}},
+		{'U',{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19}}
+	};
+
 	char base1;
 	base1 = refinestr_temp[base].aaa;
 
 	//int selected_fragidx = int(Random()*LOOPNTTEMPLATE[base1].size());
 
-	vector<vector<double>> xyz_list1(AccAtomParamNum[base1][3], vector<double>(3,0));
-    vector<vector<double>> xyz_list2(AccAtomParamNum[base1][3], vector<double>(3,0));
+	vector<vector<double>> xyz_list1(targetatoms_sup[base1].size(), vector<double>(3,0));
+    vector<vector<double>> xyz_list2(targetatoms_sup[base1].size(), vector<double>(3,0));
 
 	count = 0;
-	for(j=0; j<AccAtomParamNum[base1][3];j++){
-		xyz_list1[count][0]=refinestr_temp[base].ptv[j].x;
-		xyz_list1[count][1]=refinestr_temp[base].ptv[j].y;
-		xyz_list1[count][2]=refinestr_temp[base].ptv[j].z;
+	for(j=0; j<targetatoms_sup[base1].size();j++){
+		atom = targetatoms_sup[base1][j];
+		xyz_list1[count][0]=refinestr_temp[base].ptv[atom].x;
+		xyz_list1[count][1]=refinestr_temp[base].ptv[atom].y;
+		xyz_list1[count][2]=refinestr_temp[base].ptv[atom].z;
 
-		xyz_list2[count][0]=LOOPNTTEMPLATE[base1][selected_fragidx][0].ptv[j].x;
-		xyz_list2[count][1]=LOOPNTTEMPLATE[base1][selected_fragidx][0].ptv[j].y;
-		xyz_list2[count][2]=LOOPNTTEMPLATE[base1][selected_fragidx][0].ptv[j].z;
+		xyz_list2[count][0]=LOOPNTTEMPLATE[base1][selected_fragidx][0].ptv[atom].x;
+		xyz_list2[count][1]=LOOPNTTEMPLATE[base1][selected_fragidx][0].ptv[atom].y;
+		xyz_list2[count][2]=LOOPNTTEMPLATE[base1][selected_fragidx][0].ptv[atom].z;
 
 		count+=1;
 	}
 
 	bf.RotateCoor(xyz_list1,xyz_list2,RotMatix,TranVect);
 
-	for(j=0; j<AccAtomParamNum[base1][3];j++){
+	for(j=0; j<targetatoms[base1].size();j++){
+		atom = targetatoms[base1][j];
 		atom_coord.clear();
 		atom_coord.resize(3, 0.0);
-		atom_coord[0]=LOOPNTTEMPLATE[base1][selected_fragidx][0].ptv[j].x;
-		atom_coord[1]=LOOPNTTEMPLATE[base1][selected_fragidx][0].ptv[j].y;
-		atom_coord[2]=LOOPNTTEMPLATE[base1][selected_fragidx][0].ptv[j].z;
+		atom_coord[0]=LOOPNTTEMPLATE[base1][selected_fragidx][0].ptv[atom].x;
+		atom_coord[1]=LOOPNTTEMPLATE[base1][selected_fragidx][0].ptv[atom].y;
+		atom_coord[2]=LOOPNTTEMPLATE[base1][selected_fragidx][0].ptv[atom].z;
 
 		bf.Transform(atom_coord,RotMatix,TranVect,xyztmp);
 
-		refinestr_temp[base].ptv[j].x = xyztmp[0];
-		refinestr_temp[base].ptv[j].y = xyztmp[1];
-		refinestr_temp[base].ptv[j].z = xyztmp[2];
+		refinestr_temp[base].ptv[atom].x = xyztmp[0];
+		refinestr_temp[base].ptv[atom].y = xyztmp[1];
+		refinestr_temp[base].ptv[atom].z = xyztmp[2];
 
 	}
 
@@ -259,7 +276,7 @@ bool MonteCarloSimulation::fmovementloopfrag(double oldenergy, double &newenergy
 
 	base = refinestr_temp[nt_base].aaa;
 
-	vector<double> templateenergies;
+	//vector<double> templateenergies;
 	int templateidx;
 	double randval=Random();
 
@@ -267,7 +284,8 @@ bool MonteCarloSimulation::fmovementloopfrag(double oldenergy, double &newenergy
 	resetfrag(0);
 	
 	//if(randval < 0.5){	
-	double minrmsd = getbaseenergy(nt_base, templateenergies, templateidx);
+	double minrmsd = getbaseenergy(nt_base, templateidx);
+	//double minrmsd = getbaseenergy(nt_base, templateenergies, templateidx);
 	
 	//if(minrmsd < 0.1){
 	//selectnttemplateidx(nt_base, templateenergies, templateidx);
@@ -341,7 +359,7 @@ bool MonteCarloSimulation::fmovementloopfrag(double oldenergy, double &newenergy
 		stackingmap[i][target_bp_idx] = stmap[i][target_bp_idx];
 	}
 
-	MonteCarloSimulation::MCfragmentoptimization(initstructure, bindingmap, moveresidues, contactmap, stackingmap, basepairlist, noncbasepairlist, basepairscorelist, noncbasepairscorelist);
+	MonteCarloSimulation::MCfragmentoptimization(initstructure, bindingmap, moveresidues, contactmap, stackingmap, basepairlist, noncbasepairlist, basepairscorelist, noncbasepairscorelist, true);
 
 	
 	int istart=nt_base-1;

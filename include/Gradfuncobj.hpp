@@ -199,6 +199,23 @@ class BondAngleobj
     }
 };
 
+class MultiBondDihedralobj
+{
+	private:
+		vector<Point3s*> teAtoms;
+		vector<Point3s*> teAtomgrad;
+		vector<vector<vector<double*>>> ideals;
+		int param_cls_num;
+		double K;
+
+		vector<vector<int>> torsion_atom_idx = {{0,1,2,3}, {1,2,3,10}, {1,4,5,6}, {4,5,6,2}, {5,6,2,1}, {6,2,1,4}, {2,1,4,5}, {4,5,8,9}};
+	public:
+		MultiBondDihedralobj(const vector<Point3s*>& _AtomPtrs, const vector<Point3s*>& _Atomgrad, const vector<vector<vector<double*>>> &_ideals, const double &_K);
+
+		double calcenergymultidihedral() const;
+		void calcgradientmultidihedral();
+};
+
 class BondDihedralobj
 {
   private:
@@ -210,18 +227,17 @@ class BondDihedralobj
 	Point3s* teAtomBgrad;
 	Point3s* teAtomCgrad;
 	Point3s* teAtomDgrad;
-    double KI, PN, Phase, iDiv;
+    double K, ideal, rotn;
 
   public:
-  	BondDihedralobj(Point3s* _teAtomA, Point3s* _teAtomB, Point3s* _teAtomC, Point3s* _teAtomD, Point3s* _teAtomAgrad, Point3s* _teAtomBgrad, Point3s* _teAtomCgrad, Point3s* _teAtomDgrad, double _KI, double _PN, double _Phase, double _iDiv)
-  		: teAtomA(_teAtomA), teAtomB(_teAtomB), teAtomC(_teAtomC), teAtomD(_teAtomD), teAtomAgrad(_teAtomAgrad), teAtomBgrad(_teAtomBgrad), teAtomCgrad(_teAtomCgrad), teAtomDgrad(_teAtomDgrad), KI(_KI), PN(_PN), Phase(_Phase), iDiv(_iDiv) {}
+  	BondDihedralobj(Point3s* _teAtomA, Point3s* _teAtomB, Point3s* _teAtomC, Point3s* _teAtomD, Point3s* _teAtomAgrad, Point3s* _teAtomBgrad, Point3s* _teAtomCgrad, Point3s* _teAtomDgrad, double _K, double _ideal, double _rotn)
+  		: teAtomA(_teAtomA), teAtomB(_teAtomB), teAtomC(_teAtomC), teAtomD(_teAtomD), teAtomAgrad(_teAtomAgrad), teAtomBgrad(_teAtomBgrad), teAtomCgrad(_teAtomCgrad), teAtomDgrad(_teAtomDgrad), K(_K), ideal(_ideal*RADDEG), rotn(_rotn) {}
     
-	Point3s basecross(Point3s p1, Point3s p2) const;
     double calcenergydihedral() const;
     void   calcgradientdihedral() const;
 
-	static BondDihedralobj create(Point3s* _teAtomA, Point3s* _teAtomB, Point3s* _teAtomC, Point3s* _teAtomD, Point3s* _teAtomAgrad, Point3s* _teAtomBgrad, Point3s* _teAtomCgrad, Point3s* _teAtomDgrad, double _KI, double _PN, double _Phase, double _iDiv) {
-        return BondDihedralobj(_teAtomA, _teAtomB, _teAtomC, _teAtomD, _teAtomAgrad, _teAtomBgrad, _teAtomCgrad, _teAtomDgrad, _KI, _PN, _Phase, _iDiv);
+	static BondDihedralobj create(Point3s* _teAtomA, Point3s* _teAtomB, Point3s* _teAtomC, Point3s* _teAtomD, Point3s* _teAtomAgrad, Point3s* _teAtomBgrad, Point3s* _teAtomCgrad, Point3s* _teAtomDgrad, double _K, double _ideal, double _rotn) {
+        return BondDihedralobj(_teAtomA, _teAtomB, _teAtomC, _teAtomD, _teAtomAgrad, _teAtomBgrad, _teAtomCgrad, _teAtomDgrad, _K, _ideal, _rotn);
     }
 };
 
@@ -266,11 +282,12 @@ class Hbondobj
 	double dXiR;
 	double dXiTheta;
 	double dThreshold;
+	double beta=25;
 
   public:
   	Hbondobj(Point3s* _teAtomHyd, Point3s* _teAtomDon, Point3s* _teAtomAcc, Point3s* _teAtomHydgrad, Point3s* _teAtomDongrad, Point3s* _teAtomAccgrad, const double &_idealadleng, const double &_idealahleng, const double &_idealahdang, const double &_dK)
   		: teAtomHyd(_teAtomHyd), teAtomDon(_teAtomDon), teAtomAcc(_teAtomAcc), teAtomHydgrad(_teAtomHydgrad), teAtomDongrad(_teAtomDongrad), teAtomAccgrad(_teAtomAccgrad), idealadleng(_idealadleng), idealahleng(_idealahleng), idealahdang(cos(_idealahdang*RADDEG)),
-		  dK(_dK), dREq(1.55), dXiR(2.0), dXiTheta(2.0), dThreshold(-1.0) {}
+		  dK(_dK), dREq(0.0), dXiR(1.0), dXiTheta(1.0), dThreshold(-1.0) {}
     
     double calcenergyhbond() const;
     void   calcgradienthbond() const;
@@ -299,11 +316,12 @@ class Hbond2hydobj
 	double dXiR;
 	double dXiTheta;
 	double dThreshold;
+	double beta=25;
 
   public:
   	Hbond2hydobj(Point3s* _teAtomHyd1, Point3s* _teAtomHyd2, Point3s* _teAtomDon, Point3s* _teAtomAcc, Point3s* _teAtomHydgrad1, Point3s* _teAtomHydgrad2, Point3s* _teAtomDongrad, Point3s* _teAtomAccgrad, const double &_idealadleng, const double &_idealahleng, const double &_idealahdang, const double &_dK)
   		: teAtomHyd1(_teAtomHyd1), teAtomHyd2(_teAtomHyd2), teAtomDon(_teAtomDon), teAtomAcc(_teAtomAcc), teAtomHydgrad1(_teAtomHydgrad1), teAtomHydgrad2(_teAtomHydgrad2), teAtomDongrad(_teAtomDongrad), teAtomAccgrad(_teAtomAccgrad), idealadleng(_idealadleng), idealahleng(_idealahleng), idealahdang(cos(_idealahdang*RADDEG)),
-		  dK(_dK), dREq(1.55), dXiR(2.0), dXiTheta(2.0), dThreshold(-1.0) {}
+		  dK(_dK), dREq(0.0), dXiR(1.0), dXiTheta(1.0), dThreshold(-1.0) {}
     
     double calcenergyhbond() const;
     void   calcgradienthbond() const;

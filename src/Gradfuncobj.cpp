@@ -258,6 +258,15 @@ Point3s BondAngleobj::basecross(Point3s p1, Point3s p2)  const
 	return temp;
 }
 
+Point3s basecross(Point3s p1, Point3s p2)
+{
+	Point3s temp;
+	temp.x=p1.y * p2.z - p1.z * p2.y;
+	temp.y=p1.z * p2.x - p1.x * p2.z;
+	temp.z=p1.x * p2.y - p1.y * p2.x;
+	return temp;
+}
+
 double BondAngleobj::calcenergyangle() const
 {
 	Point3s vec21, vec23;
@@ -350,15 +359,6 @@ void BondAngleobj::calcgradientangle() const
 	//}
 }
 
-Point3s BondDihedralobj::basecross(Point3s p1, Point3s p2)  const
-{
-	Point3s temp;
-	temp.x=p1.y * p2.z - p1.z * p2.y;
-	temp.y=p1.z * p2.x - p1.x * p2.z;
-	temp.z=p1.x * p2.y - p1.y * p2.x;
-	return temp;
-}
-
 double BondDihedralobj::calcenergydihedral()  const
 {
 	Point3s vec12, vec23, vec34, vecnormal123, vecnormal234, outerprot, a, b, grad1, grad2, grad3, grad4;
@@ -379,11 +379,8 @@ double BondDihedralobj::calcenergydihedral()  const
 	vecnormal123 = basecross(vec12,vec23);
 	vecnormal234 = basecross(vec23,vec34);
 
-	double length123=sqrt(vecnormal123.x*vecnormal123.x+vecnormal123.y*vecnormal123.y+vecnormal123.z*vecnormal123.z+1e-8);
-	double length234=sqrt(vecnormal234.x*vecnormal234.x+vecnormal234.y*vecnormal234.y+vecnormal234.z*vecnormal234.z+1e-8);
-
-	if(length123 < 1e-8) length123+=1e-8;
-	if(length234 < 1e-8) length234+=1e-8;
+	double length123=sqrt(max(double(vecnormal123.x*vecnormal123.x+vecnormal123.y*vecnormal123.y+vecnormal123.z*vecnormal123.z),1e-8));
+	double length234=sqrt(max(double(vecnormal234.x*vecnormal234.x+vecnormal234.y*vecnormal234.y+vecnormal234.z*vecnormal234.z),1e-8));
 
 	vecnormal123.x /= length123; vecnormal123.y /= length123; vecnormal123.z /= length123;
 	vecnormal234.x /= length234; vecnormal234.y /= length234; vecnormal234.z /= length234;
@@ -391,89 +388,560 @@ double BondDihedralobj::calcenergydihedral()  const
 	double cosphi=vecnormal123.x*vecnormal234.x+vecnormal123.y*vecnormal234.y+vecnormal123.z*vecnormal234.z;
 	
 	if(cosphi>1.) cosphi=1.;
-  	else if(cosphi<-1.) cosphi=-1.;
+	else if(cosphi<-1.) cosphi=-1.;
 	
 	outerprot=basecross(vecnormal123,vecnormal234);
 	double dval = acos(cosphi) * ((vec23.x*outerprot.x+vec23.y*outerprot.y+vec23.z*outerprot.z) >= 0. ? 1.:-1.);
 	
-	return (KI/double(iDiv))*(1+cos(PN*dval-Phase*RADDEG));
+	if (dval < 0.0) dval += 2.0 * M_PI;
+
+	double diff = 1 + cos(rotn*dval - ideal);
+
+	return K * diff;
 }
 
 
 void BondDihedralobj::calcgradientdihedral() const
 {
-	Point3s vec12, vec23, vec34, vecnormal123, vecnormal234, outerprot, a, b, grad1, grad2, grad3, grad4;
-	Point3s vec123, vec234, outerprot23a, outerprota123, outerprot34b, outerprotb234, outerprot12a, outerprot23b;
+	Point3s vec12, vec23, vec34, vecnormal123, vecnormal234, outerprot, a, b; 
+    Point3s outerprot23a, outerprot12a, outerprot34d, outerprot23b;
 
-	vec12.x = teAtomB->x - teAtomA->x;
-	vec12.y = teAtomB->y - teAtomA->y;
-	vec12.z = teAtomB->z - teAtomA->z;
-	
-	vec23.x = teAtomC->x - teAtomB->x;
-	vec23.y = teAtomC->y - teAtomB->y;
-	vec23.z = teAtomC->z - teAtomB->z;
+    // 1. ベクトルの計算 (変更なし)
+    vec12.x = teAtomB->x - teAtomA->x;
+    vec12.y = teAtomB->y - teAtomA->y;
+    vec12.z = teAtomB->z - teAtomA->z;
+    
+    vec23.x = teAtomC->x - teAtomB->x;
+    vec23.y = teAtomC->y - teAtomB->y;
+    vec23.z = teAtomC->z - teAtomB->z;
 
-	vec34.x = teAtomD->x - teAtomC->x;
-	vec34.y = teAtomD->y - teAtomC->y;
-	vec34.z = teAtomD->z - teAtomC->z;
+    vec34.x = teAtomD->x - teAtomC->x;
+    vec34.y = teAtomD->y - teAtomC->y;
+    vec34.z = teAtomD->z - teAtomC->z;
 
-	vecnormal123 = basecross(vec12,vec23);
+	//cout<<teAtomA->x << "," << teAtomA->y << "," << teAtomA->z<<endl;
+	//cout<<teAtomB->x << "," << teAtomB->y << "," << teAtomB->z<<endl;
+	//cout<<teAtomC->x << "," << teAtomC->y << "," << teAtomC->z<<endl;
+	//cout<<teAtomD->x << "," << teAtomD->y << "," << teAtomD->z<<endl;
+
+    vecnormal123 = basecross(vec12,vec23);
 	vecnormal234 = basecross(vec23,vec34);
 
-	double length123=sqrt(vecnormal123.x*vecnormal123.x+vecnormal123.y*vecnormal123.y+vecnormal123.z*vecnormal123.z+1e-8);
-	double length234=sqrt(vecnormal234.x*vecnormal234.x+vecnormal234.y*vecnormal234.y+vecnormal234.z*vecnormal234.z+1e-8);
-
-	if(length123 < 1e-8) length123+=1e-8;
-	if(length234 < 1e-8) length234+=1e-8;
+	double length123=sqrt(max(double(vecnormal123.x*vecnormal123.x+vecnormal123.y*vecnormal123.y+vecnormal123.z*vecnormal123.z),1e-8));
+	double length234=sqrt(max(double(vecnormal234.x*vecnormal234.x+vecnormal234.y*vecnormal234.y+vecnormal234.z*vecnormal234.z),1e-8));
 
 	vecnormal123.x /= length123; vecnormal123.y /= length123; vecnormal123.z /= length123;
 	vecnormal234.x /= length234; vecnormal234.y /= length234; vecnormal234.z /= length234;
 
 	double innerprot=vecnormal123.x*vecnormal234.x+vecnormal123.y*vecnormal234.y+vecnormal123.z*vecnormal234.z;
+
+	if(innerprot>1.) innerprot=1.; 
+	else if(innerprot<-1.) innerprot=-1.; 
+
 	outerprot=basecross(vecnormal123,vecnormal234);
 
-	double phi = acos(innerprot) * ((vec23.x*outerprot.x+vec23.y*outerprot.y+vec23.z*outerprot.z) >= 0. ? 1.:-1.);
-	double sinphi = sin(phi);
+	double dval = acos(innerprot) * ((vec23.x*outerprot.x+vec23.y*outerprot.y+vec23.z*outerprot.z) >= 0. ? 1.:-1.);
 
+	double sinphi = sin(dval);
+    
 	if(fabs(sinphi) < 1e-8 || isnan(sinphi)) return;
 
-	double energydepth = KI*PN*sin(phi*PN-Phase*RADDEG)/(double(iDiv)*sinphi);
-	double cosdivleng123 = cos(phi)/length123;
-	double cosdivleng234 = cos(phi)/length234;
+	//cout<<tor+1 << "-" << minideals.size()<<endl;
+	double diff = rotn * dval - ideal;
 
-	a.x = -vecnormal234.x+vecnormal123.x*cosdivleng123;
-	a.y = -vecnormal234.y+vecnormal123.y*cosdivleng123;
-	a.z = -vecnormal234.z+vecnormal123.z*cosdivleng123;
+	//cout<<1 + cos(rotn*dval - ideal)<<endl;
 
-	b.x = -vecnormal123.x+vecnormal234.x*cosdivleng234;
-	b.y = -vecnormal123.y+vecnormal234.y*cosdivleng234;
-	b.z = -vecnormal123.z+vecnormal234.z*cosdivleng234;
+	//cout<<dval*DEGRAD << "-" << +cos(diff) << "-" << cos(diff)<<endl;
 
-	vec123.x = vec12.x+vec23.x; vec123.y = vec12.y+vec23.y; vec123.z = vec12.z+vec23.z;
-	vec234.x = vec23.x+vec34.x; vec234.y = vec23.y+vec34.y; vec234.z = vec23.z+vec34.z;
+	//cout<<dval*DEGRAD << "-" << ideal*DEGRAD+180 << "-" << cos(rotn*dval - ideal)<<endl;
 
-	outerprot23a=basecross(vec23,a);
-	outerprota123=basecross(a,vec123);
-	outerprot34b=basecross(vec34,b);
-	outerprotb234=basecross(b,vec234);
-	outerprot12a=basecross(vec12,a);
-	outerprot23b=basecross(vec23,b);
+	//double diff = dval - (*minideals[tor])*RADDEG;
+	//double s  = sin(diff);
+	//double c  = cos(diff);
+	//double delta = atan2(s, c);
 
-	teAtomAgrad->x += energydepth*outerprot23a.x; 
-	teAtomAgrad->y += energydepth*outerprot23a.y; 
-	teAtomAgrad->z += energydepth*outerprot23a.z;
+	//double ene = K * (1.0 - cos(delta));
+	double gradient_E_to_phi = K * rotn * sin(diff);
 
-	teAtomBgrad->x += energydepth*(outerprota123.x+outerprot34b.x);
-	teAtomBgrad->y += energydepth*(outerprota123.y+outerprot34b.y);
-	teAtomBgrad->z += energydepth*(outerprota123.z+outerprot34b.z);
+	//cout<<"---------"<<endl;
+	//cout<< tor+1 << "-" << 1 + cos(diff) << "-" << dval*DEGRAD << "-" << phi0 * DEGRAD<<endl;
+	//cout<<"---------"<<endl;
 
-	teAtomCgrad->x += energydepth*(outerprotb234.x+outerprot12a.x);
-	teAtomCgrad->y += energydepth*(outerprotb234.y+outerprot12a.y);
-	teAtomCgrad->z += energydepth*(outerprotb234.z+outerprot12a.z);
+	//double gradient_scale = -(K * sin(delta)) / sinphi;
+	double gradient_scale = gradient_E_to_phi / sinphi;
+
+	double inv_len123_sq = 1.0 / sqrt(length123 * length123);
+	double inv_len234_sq = 1.0 / sqrt(length234 * length234);
+
+	a.x = gradient_scale * (vecnormal234.x - vecnormal123.x * innerprot)*inv_len123_sq;
+	a.y = gradient_scale * (vecnormal234.y - vecnormal123.y * innerprot)*inv_len123_sq;
+	a.z = gradient_scale * (vecnormal234.z - vecnormal123.z * innerprot)*inv_len123_sq;
+
+	b.x = gradient_scale * (vecnormal123.x - vecnormal234.x * innerprot)*inv_len234_sq;
+	b.y = gradient_scale * (vecnormal123.y - vecnormal234.y * innerprot)*inv_len234_sq;
+	b.z = gradient_scale * (vecnormal123.z - vecnormal234.z * innerprot)*inv_len234_sq;
+
+	outerprot12a = basecross(a,vec12);     // vec(A->B) x a
+	outerprot23a = basecross(vec23,a);     // vec(B->C) x a
+	outerprot23b = basecross(b,vec23);     // vec(B->C) x b
+	outerprot34d = basecross(vec34,b);     // vec(C->D) x b
+
+	teAtomAgrad->x += (-outerprot23a.x); 
+	teAtomAgrad->y += (-outerprot23a.y); 
+	teAtomAgrad->z += (-outerprot23a.z);
+
+	teAtomBgrad->x += (-outerprot34d.x-outerprot12a.x+outerprot23a.x); 
+	teAtomBgrad->y += (-outerprot34d.y-outerprot12a.y+outerprot23a.y);
+	teAtomBgrad->z += (-outerprot34d.z-outerprot12a.z+outerprot23a.z); 
+
+	teAtomCgrad->x += (outerprot12a.x+outerprot34d.x-outerprot23b.x);
+	teAtomCgrad->y += (outerprot12a.y+outerprot34d.y-outerprot23b.y);
+	teAtomCgrad->z += (outerprot12a.z+outerprot34d.z-outerprot23b.z); 
+
+	teAtomDgrad->x += (outerprot23b.x); 
+	teAtomDgrad->y += (outerprot23b.y); 
+	teAtomDgrad->z += (outerprot23b.z);
+
+	//cout<<teAtomAgrad->x << "-" << teAtomAgrad->y << "-" << teAtomAgrad->z<<endl;
+	//cout<<teAtomBgrad->x << "-" << teAtomBgrad->y << "-" << teAtomBgrad->z<<endl;
+	//cout<<teAtomCgrad->x << "-" << teAtomCgrad->y << "-" << teAtomCgrad->z<<endl;
+	//cout<<teAtomDgrad->x << "-" << teAtomDgrad->y << "-" << teAtomDgrad->z<<endl;
+}
+
+MultiBondDihedralobj::MultiBondDihedralobj(const vector<Point3s*>& _AtomPtrs, const vector<Point3s*>& _Atomgrad, const vector<vector<vector<double*>>> &_ideals, const double &_K)
+    : teAtoms(_AtomPtrs), teAtomgrad(_Atomgrad), ideals(_ideals), K(_K)
+{
+    param_cls_num = ideals.size();
+}
+
+double distanceFromPointToLine(const Point3s& A, const Point3s& B, const Point3s& P){
+    // ベクトル AB
+    double ABx = B.x - A.x;
+    double ABy = B.y - A.y;
+    double ABz = B.z - A.z;
+
+    // ベクトル AP
+    double APx = P.x - A.x;
+    double APy = P.y - A.y;
+    double APz = P.z - A.z;
+
+    // ABの大きさ
+    double AB_length = max(double(sqrt(ABx * ABx + ABy * ABy + ABz * ABz)), 1e-8);
+
+    // 外積 AB × AP
+    double crossX = ABy * APz - ABz * APy;
+    double crossY = ABz * APx - ABx * APz;
+    double crossZ = ABx * APy - ABy * APx;
+
+    // 外積の大きさ
+    double cross_length = max(double(sqrt(crossX * crossX + crossY * crossY + crossZ * crossZ)), 1e-8);
+
+    // 距離を計算
+    return cross_length / AB_length;
+}
+
+void distanceFromPointToLineGrad(const Point3s& A, const Point3s& B, const Point3s& P, Point3s& gradA, Point3s& gradB, Point3s& gradP, const double &ideal, const double K){
+    double ABx = B.x - A.x;
+    double ABy = B.y - A.y;
+    double ABz = B.z - A.z;
+
+	// ベクトル AP
+    double APx = P.x - A.x;
+    double APy = P.y - A.y;
+    double APz = P.z - A.z;
+
+	double AB_length_sq = ABx * ABx + ABy * ABy + ABz * ABz;
+
+	if(AB_length_sq < 1e-16) return;
+
+	double AB_length = max(double(sqrt(AB_length_sq)), 1e-8);
+
+	if (AB_length_sq < 1e-16) return; 
+
+	double AB_dot_AP = ABx * APx + ABy * APy + ABz * APz;
+
+	double t = AB_dot_AP / AB_length_sq;
+
+	Point3s R_perp;
+    R_perp.x = APx - t * ABx;
+    R_perp.y = APy - t * ABy;
+    R_perp.z = APz - t * ABz;
+
+	double d_sq = R_perp.x * R_perp.x + R_perp.y * R_perp.y + R_perp.z * R_perp.z;
+
+	if (d_sq < 1e-8) return;
+
+	double d = sqrt(d_sq);
+
+	//cout<<"0 " << d << "-" << ideal<<endl;
+
+	double diff_dist = d - ideal;
+	double common_factor = 2.0 * K * diff_dist;
+
+	double inv_d = 1.0 / d;
+    Point3s u_d;
+    u_d.x = R_perp.x * inv_d;
+    u_d.y = R_perp.y * inv_d;
+    u_d.z = R_perp.z * inv_d;
+
+	double u_dot_v = u_d.x * ABx + u_d.y * ABy + u_d.z * ABz;
+    double t_prime = u_dot_v / AB_length_sq;
+
+	Point3s Grad_d_p;
+    Grad_d_p.x = u_d.x - t_prime * ABx;
+    Grad_d_p.y = u_d.y - t_prime * ABy;
+    Grad_d_p.z = u_d.z - t_prime * ABz;
+
+	Point3s Grad_d_n;
+    Grad_d_n.x = (t - 1.0) * u_d.x + t_prime * ABx;
+    Grad_d_n.y = (t - 1.0) * u_d.y + t_prime * ABy;
+    Grad_d_n.z = (t - 1.0) * u_d.z + t_prime * ABz;
+
+	Point3s Grad_d_c;
+    Grad_d_c.x = -t * u_d.x + t_prime * ABx;
+    Grad_d_c.y = -t * u_d.y + t_prime * ABy;
+    Grad_d_c.z = -t * u_d.z + t_prime * ABz;
+
+	// P_p (teAtoms[10]) の勾配
+    gradP.x += common_factor * Grad_d_p.x;
+    gradP.y += common_factor * Grad_d_p.y;
+    gradP.z += common_factor * Grad_d_p.z;
+
+    // P_n (teAtoms[8]) の勾配
+    gradA.x += common_factor * Grad_d_n.x;
+    gradA.y += common_factor * Grad_d_n.y;
+    gradA.z += common_factor * Grad_d_n.z;
+
+    // P_c (teAtoms[5]) の勾配
+    gradB.x += common_factor * Grad_d_c.x;
+    gradB.y += common_factor * Grad_d_c.y;
+    gradB.z += common_factor * Grad_d_c.z;
+
+	//cout<<common_factor * Grad_d_n.x << "," << common_factor * Grad_d_n.y << "," << common_factor * Grad_d_n.z <<endl;
+	//cout<<common_factor * Grad_d_c.x << "," << common_factor * Grad_d_c.y << "," << common_factor * Grad_d_c.z <<endl;
+	//cout<<common_factor * Grad_d_p.x << "," << common_factor * Grad_d_p.y << "," << common_factor * Grad_d_p.z <<endl;
+}
+
+double MultiBondDihedralobj::calcenergymultidihedral()  const
+{
+	int atom1, atom2, atom3, atom4;
+	Point3s teAtomA, teAtomB, teAtomC, teAtomD;
+	Point3s vec12, vec23, vec34, vecnormal123, vecnormal234, outerprot, a, b, grad1, grad2, grad3, grad4;
+	Point3s vec123, vec234, outerprot23a, outerprota123, outerprot34b, outerprotb234, outerprot12a, outerprot23b;
+
+	vector<double> torsions(torsion_atom_idx.size(),0.0);
+	double baseplengths;
+
+	for(int tor=0;tor<torsion_atom_idx.size();tor++){
+		if(tor == 1) continue;
+		atom1 = torsion_atom_idx[tor][0];
+		atom2 = torsion_atom_idx[tor][1];
+		atom3 = torsion_atom_idx[tor][2];
+		atom4 = torsion_atom_idx[tor][3];
+
+		teAtomA.x = teAtoms[atom1]->x; teAtomA.y = teAtoms[atom1]->y; teAtomA.z = teAtoms[atom1]->z;
+		teAtomB.x = teAtoms[atom2]->x; teAtomB.y = teAtoms[atom2]->y; teAtomB.z = teAtoms[atom2]->z;
+		teAtomC.x = teAtoms[atom3]->x; teAtomC.y = teAtoms[atom3]->y; teAtomC.z = teAtoms[atom3]->z;
+		teAtomD.x = teAtoms[atom4]->x; teAtomD.y = teAtoms[atom4]->y; teAtomD.z = teAtoms[atom4]->z;
+
+		vec12.x = teAtomB.x - teAtomA.x;
+		vec12.y = teAtomB.y - teAtomA.y;
+		vec12.z = teAtomB.z - teAtomA.z;
+		
+		vec23.x = teAtomC.x - teAtomB.x;
+		vec23.y = teAtomC.y - teAtomB.y;
+		vec23.z = teAtomC.z - teAtomB.z;
+
+		vec34.x = teAtomD.x - teAtomC.x;
+		vec34.y = teAtomD.y - teAtomC.y;
+		vec34.z = teAtomD.z - teAtomC.z;
+
+		vecnormal123 = basecross(vec12,vec23);
+		vecnormal234 = basecross(vec23,vec34);
+
+		double length123=sqrt(max(double(vecnormal123.x*vecnormal123.x+vecnormal123.y*vecnormal123.y+vecnormal123.z*vecnormal123.z),1e-8));
+		double length234=sqrt(max(double(vecnormal234.x*vecnormal234.x+vecnormal234.y*vecnormal234.y+vecnormal234.z*vecnormal234.z),1e-8));
+
+		vecnormal123.x /= length123; vecnormal123.y /= length123; vecnormal123.z /= length123;
+		vecnormal234.x /= length234; vecnormal234.y /= length234; vecnormal234.z /= length234;
+
+		double cosphi=vecnormal123.x*vecnormal234.x+vecnormal123.y*vecnormal234.y+vecnormal123.z*vecnormal234.z;
+
+		if(cosphi>1.) cosphi=1.;
+		else if(cosphi<-1.) cosphi=-1.;
+		
+		outerprot=basecross(vecnormal123,vecnormal234);
+		double dval = acos(cosphi) * ((vec23.x*outerprot.x+vec23.y*outerprot.y+vec23.z*outerprot.z) >= 0. ? 1.:-1.);
+
+		if (dval < 0.0) dval += 2.0 * M_PI;
+
+		torsions[tor] = dval;
+	}
+
+	Point3s ptn, ptc, ptp;
+	ptn.x = teAtoms[8]->x;  ptn.y = teAtoms[8]->y;  ptn.z = teAtoms[8]->z;
+	ptc.x = teAtoms[5]->x;  ptc.y = teAtoms[5]->y;  ptc.z = teAtoms[5]->z;
+	ptp.x = teAtoms[10]->x; ptp.y = teAtoms[10]->y; ptp.z = teAtoms[10]->z;
+		
+	baseplengths = distanceFromPointToLine(ptn, ptc, ptp);
+
+	double minenergy = 1.0/0.0;
+	double diff;
+	double idealval;
+	for(int i=0;i<ideals.size();i++){
+		double energy = 0;
+
+		diff = baseplengths - (*ideals[i][0][0]);
+
+		//cout<<baseplengths << "-" << (*ideals[i][0][0]) << "-" << diff<<endl;
+
+		energy += (K/100) * diff * diff;
+
+		for(int j=1;j<ideals[i].size();j++){
+			if(j == 2) continue;
+
+			diff = 1 + cos((*ideals[i][j][0])*torsions[j-1] - (*ideals[i][j][1])*RADDEG);
+
+			//double s  = sin(diff);
+			//double c  = cos(diff);
+			//double delta = atan2(s, c); 
+			//energy += K * (1.0 - cos(delta));
+			energy += K * diff;
+		}
+
+		if(minenergy > energy) minenergy = energy;
+	}
+
+	//cout<<minenergy<<endl;
 	
-	teAtomDgrad->x += energydepth*outerprot23b.x;
-	teAtomDgrad->y += energydepth*outerprot23b.y;
-	teAtomDgrad->z += energydepth*outerprot23b.z;
+	return minenergy;	
+}
+
+void MultiBondDihedralobj::calcgradientmultidihedral()
+{
+	int atom1, atom2, atom3, atom4;
+	Point3s teAtomA, teAtomB, teAtomC, teAtomD;
+	Point3s vec12, vec23, vec34;
+	Point3s vecnormal123, vecnormal234, outerprot, a, b; 
+	Point3s outerprot23a, outerprot12a, outerprot34d, outerprot23b;
+	double baseplengths;
+
+	vector<double> torsions(torsion_atom_idx.size(),0.0);
+
+	for(int tor=0;tor<torsion_atom_idx.size();tor++)
+	{
+		if(tor == 1) continue;
+		atom1 = torsion_atom_idx[tor][0];
+		atom2 = torsion_atom_idx[tor][1];
+		atom3 = torsion_atom_idx[tor][2];
+		atom4 = torsion_atom_idx[tor][3];
+
+		teAtomA.x = teAtoms[atom1]->x; teAtomA.y = teAtoms[atom1]->y; teAtomA.z = teAtoms[atom1]->z;
+		teAtomB.x = teAtoms[atom2]->x; teAtomB.y = teAtoms[atom2]->y; teAtomB.z = teAtoms[atom2]->z;
+		teAtomC.x = teAtoms[atom3]->x; teAtomC.y = teAtoms[atom3]->y; teAtomC.z = teAtoms[atom3]->z;
+		teAtomD.x = teAtoms[atom4]->x; teAtomD.y = teAtoms[atom4]->y; teAtomD.z = teAtoms[atom4]->z;
+
+		vec12.x = teAtomB.x - teAtomA.x;
+		vec12.y = teAtomB.y - teAtomA.y;
+		vec12.z = teAtomB.z - teAtomA.z;
+		
+		vec23.x = teAtomC.x - teAtomB.x;
+		vec23.y = teAtomC.y - teAtomB.y;
+		vec23.z = teAtomC.z - teAtomB.z;
+
+		vec34.x = teAtomD.x - teAtomC.x;
+		vec34.y = teAtomD.y - teAtomC.y;
+		vec34.z = teAtomD.z - teAtomC.z;
+
+		vecnormal123 = basecross(vec12,vec23);
+		vecnormal234 = basecross(vec23,vec34);
+
+		double length123=sqrt(max(double(vecnormal123.x*vecnormal123.x+vecnormal123.y*vecnormal123.y+vecnormal123.z*vecnormal123.z),1e-8));
+		double length234=sqrt(max(double(vecnormal234.x*vecnormal234.x+vecnormal234.y*vecnormal234.y+vecnormal234.z*vecnormal234.z),1e-8));
+
+		vecnormal123.x /= length123; vecnormal123.y /= length123; vecnormal123.z /= length123;
+		vecnormal234.x /= length234; vecnormal234.y /= length234; vecnormal234.z /= length234;
+
+		double innerprot=vecnormal123.x*vecnormal234.x+vecnormal123.y*vecnormal234.y+vecnormal123.z*vecnormal234.z;
+
+		if(innerprot>1.) innerprot=1.; 
+		else if(innerprot<-1.) innerprot=-1.; 
+
+		outerprot=basecross(vecnormal123,vecnormal234);
+
+		double dval = acos(innerprot) * ((vec23.x*outerprot.x+vec23.y*outerprot.y+vec23.z*outerprot.z) >= 0. ? 1.:-1.);
+
+		if (dval < 0.0) dval += 2.0 * M_PI;
+
+		torsions[tor] = dval;
+	}
+
+	Point3s ptn, ptc, ptp;
+	ptn.x = teAtoms[8]->x;  ptn.y = teAtoms[8]->y;  ptn.z = teAtoms[8]->z;
+	ptc.x = teAtoms[5]->x;  ptc.y = teAtoms[5]->y;  ptc.z = teAtoms[5]->z;
+	ptp.x = teAtoms[10]->x; ptp.y = teAtoms[10]->y; ptp.z = teAtoms[10]->z;
+
+	//cout<<"================="<<endl;
+	//cout<<ptn.x << "," << ptn.y << "," << ptn.z <<endl;
+	//cout<<ptc.x << "," << ptc.y << "," << ptc.z <<endl;
+	//cout<<ptp.x << "," << ptp.y << "," << ptp.z <<endl;
+		
+	baseplengths = distanceFromPointToLine(ptn, ptc, ptp);
+
+	//cout<<baseplengths<<endl;
+
+	double minenergy = 1.0/0.0;
+	int minidx = -1;
+	double diff;
+
+	for(int i=0;i<ideals.size();i++)
+	{
+		double energy = 0;
+
+		diff = baseplengths - (*ideals[i][0][0]);
+
+		//cout<<"aaa-" << (K/100) * diff * diff<<endl;
+
+		energy += (K/100) * diff * diff;
+
+		for(int j=1;j<ideals[i].size();j++)
+		{
+			if(j == 2) continue;
+			//cout<<(*ideals[i][j][1])*RADDEG<<endl;
+			diff = 1 + cos((*ideals[i][j][0])*torsions[j-1] - (*ideals[i][j][1])*RADDEG);
+
+			//cout<<"bbb-" << diff<<endl;
+
+			energy += K * diff;
+		}
+
+		if(minenergy > energy){
+			minenergy = energy;
+			minidx = i;
+		}
+	}
+	//exit(1);
+
+	//cout<<minenergy<<endl;
+
+	if (minidx == -1) return;
+	
+	vector<vector<double*>> minideals = ideals[minidx];
+
+	//cout<<torsion_atom_idx.size() << "================"<<endl;
+	for(int tor=0;tor<torsion_atom_idx.size();tor++){
+		if(tor == 1) continue;
+		atom1 = torsion_atom_idx[tor][0];
+		atom2 = torsion_atom_idx[tor][1];
+		atom3 = torsion_atom_idx[tor][2];
+		atom4 = torsion_atom_idx[tor][3];
+
+		teAtomA.x = teAtoms[atom1]->x; teAtomA.y = teAtoms[atom1]->y; teAtomA.z = teAtoms[atom1]->z;
+		teAtomB.x = teAtoms[atom2]->x; teAtomB.y = teAtoms[atom2]->y; teAtomB.z = teAtoms[atom2]->z;
+		teAtomC.x = teAtoms[atom3]->x; teAtomC.y = teAtoms[atom3]->y; teAtomC.z = teAtoms[atom3]->z;
+		teAtomD.x = teAtoms[atom4]->x; teAtomD.y = teAtoms[atom4]->y; teAtomD.z = teAtoms[atom4]->z;
+
+		vec12.x = teAtomB.x - teAtomA.x;
+		vec12.y = teAtomB.y - teAtomA.y;
+		vec12.z = teAtomB.z - teAtomA.z;
+		
+		vec23.x = teAtomC.x - teAtomB.x;
+		vec23.y = teAtomC.y - teAtomB.y;
+		vec23.z = teAtomC.z - teAtomB.z;
+
+		vec34.x = teAtomD.x - teAtomC.x;
+		vec34.y = teAtomD.y - teAtomC.y;
+		vec34.z = teAtomD.z - teAtomC.z;
+
+		vecnormal123 = basecross(vec12,vec23);
+		vecnormal234 = basecross(vec23,vec34);
+
+		double length123=sqrt(max(double(vecnormal123.x*vecnormal123.x+vecnormal123.y*vecnormal123.y+vecnormal123.z*vecnormal123.z),1e-8));
+		double length234=sqrt(max(double(vecnormal234.x*vecnormal234.x+vecnormal234.y*vecnormal234.y+vecnormal234.z*vecnormal234.z),1e-8));
+
+		vecnormal123.x /= length123; vecnormal123.y /= length123; vecnormal123.z /= length123;
+		vecnormal234.x /= length234; vecnormal234.y /= length234; vecnormal234.z /= length234;
+
+		double innerprot=vecnormal123.x*vecnormal234.x+vecnormal123.y*vecnormal234.y+vecnormal123.z*vecnormal234.z;
+
+		if(innerprot>1.) innerprot=1.; 
+		else if(innerprot<-1.) innerprot=-1.; 
+
+		outerprot=basecross(vecnormal123,vecnormal234);
+
+		double dval = acos(innerprot) * ((vec23.x*outerprot.x+vec23.y*outerprot.y+vec23.z*outerprot.z) >= 0. ? 1.:-1.);
+
+		double sinphi = sin(dval);
+    
+		if(fabs(sinphi) < 1e-8 || isnan(sinphi)) continue;
+
+		//cout<<tor+1 << "-" << minideals.size()<<endl;
+		double n = (*minideals[tor+1][0]);
+        double phi0 = (*minideals[tor+1][1])*RADDEG;
+        double diff = n * dval - phi0;
+
+		//double diff = dval - (*minideals[tor])*RADDEG;
+		//double s  = sin(diff);
+		//double c  = cos(diff);
+		//double delta = atan2(s, c);
+
+		//double ene = K * (1.0 - cos(delta));
+		double gradient_E_to_phi = K * n * sin(diff);
+
+		//cout<<"---------"<<endl;
+		//cout<< tor+1 << "-" << 1 + cos(diff) << "-" << dval*DEGRAD << "-" << phi0 * DEGRAD<<endl;
+		//cout<<"---------"<<endl;
+
+		//double gradient_scale = -(K * sin(delta)) / sinphi;
+		double gradient_scale = gradient_E_to_phi / sinphi;
+
+		double inv_len123_sq = 1.0 / sqrt(length123 * length123);
+		double inv_len234_sq = 1.0 / sqrt(length234 * length234);
+		//double inv_len123_sq = 1.0 / length123 * length123;
+		//double inv_len234_sq = 1.0 / length234 * length234;
+
+		a.x = gradient_scale * (vecnormal234.x - vecnormal123.x * innerprot)*inv_len123_sq;
+		a.y = gradient_scale * (vecnormal234.y - vecnormal123.y * innerprot)*inv_len123_sq;
+		a.z = gradient_scale * (vecnormal234.z - vecnormal123.z * innerprot)*inv_len123_sq;
+
+		b.x = gradient_scale * (vecnormal123.x - vecnormal234.x * innerprot)*inv_len234_sq;
+		b.y = gradient_scale * (vecnormal123.y - vecnormal234.y * innerprot)*inv_len234_sq;
+		b.z = gradient_scale * (vecnormal123.z - vecnormal234.z * innerprot)*inv_len234_sq;
+
+		outerprot12a = basecross(a,vec12);     // vec(A->B) x a
+		outerprot23a = basecross(vec23,a);     // vec(B->C) x a
+		outerprot23b = basecross(b,vec23);     // vec(B->C) x b
+		outerprot34d = basecross(vec34,b);     // vec(C->D) x b
+
+		teAtomgrad[atom1]->x += (-outerprot23a.x); 
+		teAtomgrad[atom1]->y += (-outerprot23a.y); 
+		teAtomgrad[atom1]->z += (-outerprot23a.z);
+
+		teAtomgrad[atom2]->x += (-outerprot34d.x-outerprot12a.x+outerprot23a.x); 
+		teAtomgrad[atom2]->y += (-outerprot34d.y-outerprot12a.y+outerprot23a.y);
+		teAtomgrad[atom2]->z += (-outerprot34d.z-outerprot12a.z+outerprot23a.z); 
+
+		teAtomgrad[atom3]->x += (outerprot12a.x+outerprot34d.x-outerprot23b.x);
+		teAtomgrad[atom3]->y += (outerprot12a.y+outerprot34d.y-outerprot23b.y);
+		teAtomgrad[atom3]->z += (outerprot12a.z+outerprot34d.z-outerprot23b.z); 
+
+		teAtomgrad[atom4]->x += (outerprot23b.x); 
+		teAtomgrad[atom4]->y += (outerprot23b.y); 
+		teAtomgrad[atom4]->z += (outerprot23b.z);
+	}
+
+	//cout<<teAtomgrad[8]->x << "," << teAtomgrad[8]->y << "," << teAtomgrad[8]->z <<endl;
+	//cout<<teAtomgrad[5]->x << "," << teAtomgrad[5]->y << "," << teAtomgrad[5]->z <<endl;
+	//cout<<teAtomgrad[10]->x << "," << teAtomgrad[10]->y << "," << teAtomgrad[10]->z <<endl;
+	distanceFromPointToLineGrad(ptn, ptc, ptp, *teAtomgrad[8], *teAtomgrad[5], *teAtomgrad[10], (*minideals[0][0]), (K/100));
+
+	//cout<<"=================="<<endl;
+
+	//cout<<teAtomgrad[8]->x << "," << teAtomgrad[8]->y << "," << teAtomgrad[8]->z <<endl;
+	//cout<<teAtomgrad[5]->x << "," << teAtomgrad[5]->y << "," << teAtomgrad[5]->z <<endl;
+	//cout<<teAtomgrad[10]->x << "," << teAtomgrad[10]->y << "," << teAtomgrad[10]->z <<endl;
+
+	//exit(1);
 }
 
 Point3s BondImpropersobj::basecross(Point3s p1, Point3s p2)  const
@@ -624,22 +1092,24 @@ void Hbondobj::calcgradienthbond() const
 	if     (dcosangle >  1.) dcosangle =  1.;
   	else if(dcosangle < -1.) dcosangle = -1.;
 
-	//bool angle_active = (dcosangle >= idealahdang);
-	//if (!angle_active) dcosangle = -1.0;
-
 	double dcosangle_diff = dcosangle - idealahdang;
-    double dcosangle_diff_sq = dcosangle_diff * dcosangle_diff;
+	double dcosangle_diff_beta = beta*dcosangle_diff;
+	double dcosangle_softplus = (1/beta)*log1p(exp(dcosangle_diff_beta));
 
 	double idealahdiff = length23-idealahleng;
 	double idealaddiff = length13-idealadleng;
 
-	double denergydepth = -dK*exp(-dXiR * (idealahdiff*idealahdiff + idealaddiff*idealaddiff) - dXiTheta*dcosangle_diff_sq + dREq);
+	double denergydepth = -dK*exp(-dXiR * (idealahdiff*idealahdiff + idealaddiff*idealaddiff) - dXiTheta*dcosangle_softplus*dcosangle_softplus + dREq);
 
-	const double angle_term_deriv = -dXiTheta * 2.0 * dcosangle_diff;
+	//cout<<"=============="<<endl;
+	//cout<<-dXiR * (idealahdiff*idealahdiff + idealaddiff*idealaddiff) - dXiTheta*dcosangle_softplus*dcosangle_softplus + dREq<<endl;
+	//cout<<length13 << "-" << idealadleng<<endl;
+	//cout<<length23 << "-" << idealahleng<<endl;
+	//cout<<dcosangle << "-" << idealahdang<<endl;
 
-	//double coeff1 = angle_active ? ( -dXiTheta/length21 ) : 0.0;
+	const double angle_term_deriv = -dXiTheta * 2.0 *  dcosangle_softplus * (1.0 / (1.0 + exp(-dcosangle_diff_beta)));
+
 	double coeff1 = angle_term_deriv / (length21 + 1e-8);
-	//double coeff2 = angle_active ? ( -dXiTheta/length23 ) : 0.0;
 	double coeff2 = angle_term_deriv / (length23 + 1e-8);
 	double coeff3 = innerprot-1.0;
 	double coeff4 = -2.*dXiR;
@@ -673,11 +1143,6 @@ void Hbondobj::calcgradienthbond() const
 	teAtomAccgrad->x += denergydepth*grad3.x;
 	teAtomAccgrad->y += denergydepth*grad3.y;
 	teAtomAccgrad->z += denergydepth*grad3.z;
-
-	//if (std::isinf(teAtomDongrad->x) || std::isinf(teAtomDongrad->y) || std::isinf(teAtomDongrad->z) || std::isinf(teAtomHydgrad->x) || std::isinf(teAtomHydgrad->y) || std::isinf(teAtomHydgrad->z) || std::isinf(teAtomAccgrad->x) || std::isinf(teAtomAccgrad->y) || std::isinf(teAtomAccgrad->z)) {
-		//cout<<"Error hbond"<<endl;
-		//std::exit(EXIT_FAILURE);
-	//}
 }
 
 double Hbondobj::calcenergyhbond() const
@@ -696,30 +1161,25 @@ double Hbondobj::calcenergyhbond() const
 	vec13.y = teAtomDon->y - teAtomAcc->y;
 	vec13.z = teAtomDon->z - teAtomAcc->z;
 
-	double length21=sqrt(vec21.x*vec21.x+vec21.y*vec21.y+vec21.z*vec21.z+1e-8);
-	double length23=sqrt(vec23.x*vec23.x+vec23.y*vec23.y+vec23.z*vec23.z+1e-8);
-	double length13=sqrt(vec13.x*vec13.x+vec13.y*vec13.y+vec13.z*vec13.z+1e-8);
+	double length21=max(double(sqrt(vec21.x*vec21.x+vec21.y*vec21.y+vec21.z*vec21.z)),1e-8);
+	double length23=max(double(sqrt(vec23.x*vec23.x+vec23.y*vec23.y+vec23.z*vec23.z)),1e-8);
+	double length13=max(double(sqrt(vec13.x*vec13.x+vec13.y*vec13.y+vec13.z*vec13.z)),1e-8);
 
 	vec21.x /= length21; vec21.y /= length21; vec21.z /= length21;
 	vec23.x /= length23; vec23.y /= length23; vec23.z /= length23;
-	vec13.x /= length13; vec13.y /= length13; vec13.z /= length13;
 	
 	double innerprot = vec21.x*vec23.x+vec21.y*vec23.y+vec21.z*vec23.z;
 	double dcosangle = innerprot;
 	if     (dcosangle >  1.) dcosangle =  1.;
   	else if(dcosangle < -1.) dcosangle = -1.;
 
-	//if(dcosangle < idealahdang) dcosangle = -1;
-
-	double dcosangle_diff = dcosangle - idealahdang;
-    double dcosangle_diff_sq = dcosangle_diff * dcosangle_diff;
-
+	double dcosangle_diff =  dcosangle-idealahdang;
+	double dcosangle_softplus = (1/beta)*log1p(exp(beta*dcosangle_diff));
+    
 	double idealahdiff = length23-idealahleng;
 	double idealaddiff = length13-idealadleng;
 
-	//cout<<-dK*exp(-dXiR * (idealahdiff*idealahdiff + idealaddiff*idealaddiff) + dXiTheta*dcosangle)<<endl;
-
-	return -dK*exp(-dXiR * (idealahdiff*idealahdiff + idealaddiff*idealaddiff) - dXiTheta*dcosangle_diff_sq + dREq);
+	return -dK*exp(-dXiR * (idealahdiff*idealahdiff + idealaddiff*idealaddiff) - dXiTheta*dcosangle_softplus*dcosangle_softplus + dREq);
 }
 
 void Hbond2hydobj::calcgradienthbond() const
@@ -734,8 +1194,8 @@ void Hbond2hydobj::calcgradienthbond() const
 	vec23_2.y = teAtomAcc->y - teAtomHyd2->y;
 	vec23_2.z = teAtomAcc->z - teAtomHyd2->z;
 
-	double length23_1=sqrt(vec23_1.x*vec23_1.x+vec23_1.y*vec23_1.y+vec23_1.z*vec23_1.z+1e-8);
-	double length23_2=sqrt(vec23_2.x*vec23_2.x+vec23_2.y*vec23_2.y+vec23_2.z*vec23_2.z+1e-8);
+	double length23_1=max(double(sqrt(vec23_1.x*vec23_1.x+vec23_1.y*vec23_1.y+vec23_1.z*vec23_1.z)),1e-8);
+	double length23_2=max(double(sqrt(vec23_2.x*vec23_2.x+vec23_2.y*vec23_2.y+vec23_2.z*vec23_2.z)),1e-8);
 
 	int hydatom;
 	if(length23_1 < length23_2){
@@ -781,15 +1241,18 @@ void Hbond2hydobj::calcgradienthbond() const
 	//if (!angle_active) dcosangle = -1.0;
 
 	double dcosangle_diff = dcosangle - idealahdang;
-    double dcosangle_diff_sq = dcosangle_diff * dcosangle_diff;
+	double dcosangle_diff_beta = beta*dcosangle_diff;
+	double dcosangle_softplus = (1/beta)*log1p(exp(dcosangle_diff_beta));
+    //double dcosangle_diff_sq = dcosangle_diff * dcosangle_diff;
 
+	//cout<<dK << "-" << dcosangle << "-" <<  idealahdang << "-" << dcosangle_softplus << "-" << length23 << "-" << idealahleng << "-" << length13 << "-" << idealadleng<<endl;
 
 	double idealahdiff = length23-idealahleng;
 	double idealaddiff = length13-idealadleng;
 
-	double denergydepth = -dK*exp(-dXiR * (idealahdiff*idealahdiff + idealaddiff*idealaddiff) - dXiTheta*dcosangle_diff_sq + dREq);
+	double denergydepth = -dK*exp(-dXiR * (idealahdiff*idealahdiff + idealaddiff*idealaddiff) - dXiTheta*dcosangle_softplus*dcosangle_softplus + dREq);
 
-	const double angle_term_deriv = -dXiTheta * 2.0 * dcosangle_diff;
+	const double angle_term_deriv = -dXiTheta * 2.0 *  dcosangle_softplus * (1.0 / (1.0 + exp(-dcosangle_diff_beta)));
 
 	//double coeff1 = angle_active ? ( -dXiTheta/(length21 + 1e-8) ) : 0.0;
 	double coeff1 = angle_term_deriv / (length21 + 1e-8);
@@ -896,14 +1359,15 @@ double Hbond2hydobj::calcenergyhbond() const
 	//if (!angle_active) dcosangle = -1.0;
 
 	double dcosangle_diff = dcosangle - idealahdang;
-    double dcosangle_diff_sq = dcosangle_diff * dcosangle_diff;
+	double dcosangle_softplus = (1/beta)*log1p(exp(beta*dcosangle_diff));
+    //double dcosangle_diff_sq = dcosangle_diff * dcosangle_diff;
 
 	double idealahdiff = length23-idealahleng;
 	double idealaddiff = length13-idealadleng;
 
 	//cout<<-dK*exp((-dXiR * (idealahdiff*idealahdiff + idealaddiff*idealaddiff) + dXiTheta*dcosangle))<<endl;
 
-	return -dK*exp((-dXiR * (idealahdiff*idealahdiff + idealaddiff*idealaddiff) - dXiTheta*dcosangle_diff_sq + dREq));
+	return -dK*exp((-dXiR * (idealahdiff*idealahdiff + idealaddiff*idealaddiff) - dXiTheta*dcosangle_softplus*dcosangle_softplus + dREq));
 }
 
 /*
@@ -1094,8 +1558,10 @@ double BasePairobj::calcenergybasepair() const
 {
   double dEnergy = K*TotalSQRDistance();
 
+  //cout<<dEnergy<<endl;
+
   //for(std::list<TSpring>::const_iterator I = BaseSprings.begin(), end = BaseSprings.end(); I != end; ++I)
-    //dEnergy += I->dCalcEnergy();  
+    //dEnergy += I->dCalcEnergy(); 
   
   return (isnan(dEnergy)) ? 0. : dEnergy;
 }
@@ -1662,15 +2128,6 @@ void getdistgrad(const double &x1, const double &y1, const double &z1, const dou
 void getcentergrad(double &dx, const int &n)
 {
 	dx = 1.0/n;
-}
-
-Point3s basecross(Point3s p1, Point3s p2)
-{
-	Point3s temp;
-	temp.x=p1.y * p2.z - p1.z * p2.y;
-	temp.y=p1.z * p2.x - p1.x * p2.z;
-	temp.z=p1.x * p2.y - p1.y * p2.x;
-	return temp;
 }
 
 void getoutprodgrad(const Point3s &gradprev, const Point3s &vecA, const Point3s &vecB, Point3s &gradA, Point3s &gradB)

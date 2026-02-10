@@ -121,7 +121,7 @@ double MonteCarloSimulation::getmovangval(double val, double mean, double std, d
 	return newval;
 }
 
-void MonteCarloSimulation::selecttargetang(int &trandpos, int &angtype, double r)
+bool MonteCarloSimulation::selecttargetang(int &trandpos, int &angtype, double r)
 {
 	double randval=Random();
 
@@ -211,6 +211,10 @@ void MonteCarloSimulation::selecttargetang(int &trandpos, int &angtype, double r
 			}
 		}
 		
+		if(tenergy < 0.000001){
+			return false;
+		}
+
 		double wpos=Random()*tenergy;
 		double currentenen=0;
 		double nextene;
@@ -222,7 +226,7 @@ void MonteCarloSimulation::selecttargetang(int &trandpos, int &angtype, double r
 				if(currentenen <= wpos && wpos < nextene){
 					trandpos=i;
 					angtype=j;
-					return;
+					return true;
 				}
 				currentenen=nextene;
 			}
@@ -231,7 +235,10 @@ void MonteCarloSimulation::selecttargetang(int &trandpos, int &angtype, double r
 		trandpos=Random()*numbb;
 		char base=refinestr[trandpos].aaa;
 		angtype=int(AccAtomParamNum[base][3]*Random());
+		return true;
 	}
+
+	return false;
 }
 
 bool MonteCarloSimulation::fmovementang(double oldenergy, double &newenergy)
@@ -242,7 +249,14 @@ bool MonteCarloSimulation::fmovementang(double oldenergy, double &newenergy)
 	//int angtype=int(AccAtomParamNum[base][3]*Random());
 
 	int trandpos, angtype;
-	selecttargetang(trandpos, angtype, 0.8);
+	bool selflag = selecttargetang(trandpos, angtype, 0.8);
+
+	if(selflag == 0){
+		newenergy=oldenergy+1000000000;
+		return false;
+	}
+
+
 	char base=refinestr[trandpos].aaa;
 
 	//cout<<"=============="<<endl;
@@ -281,7 +295,7 @@ bool MonteCarloSimulation::fmovementang(double oldenergy, double &newenergy)
 			lower = MCBASEINNERANGPARAM[base][idx][2];
 			upper = MCBASEINNERANGPARAM[base][idx][3];
 	   	}
-
+		
 		if(uptype == 0){
 			refinestr_temp[trandpos].ang[angtype]=getmovangval(refinestr_temp[trandpos].ang[angtype], mean, std, 0.1);
 		}else{

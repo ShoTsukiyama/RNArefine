@@ -13,6 +13,8 @@ void MonteCarloSimulation::updateenergies()
 	if(weightenergy["Electros energy"] > 0) updateeneelectros();
 	if(weightenergy["LJ energy"] > 0) updateenelj();
 	if(weightenergy["Hbond energy"] > 0) updateenehbond();
+	if(weightenergy["BB Hbond energy"] > 0) updateenebbhbond();
+	if(weightenergy["BBBase Hbond energy"] > 0) updateenebbbasehbond();
 	if(weightenergy["BP energy"] > 0) updateenebp();
 	if(weightenergy["Stack energy"] > 0) updateenestack();
 	if(weightenergy["Stack geometrical energy"] > 0) updateenestackgeo();
@@ -24,7 +26,8 @@ void MonteCarloSimulation::initializeatomenergy()
 	int i,j;
 	for(i=0;i<numbb;i++){
 		char base=refinestr_temp[i].aaa;
-		for(j=0;j<AccAtomParamNum[base][4];j++){
+		for(j=0;j<AccAtomParamNum[base][4];j++)
+		{
 			lengthenergyatoms[i][j]=0;
 			torsionenergyatoms[i][j]=0;
 			angleenergyatoms[i][j]=0;
@@ -104,6 +107,19 @@ double MonteCarloSimulation::calcenergymain()
 		double hbond_ene = weightenergy["Hbond energy"] * calcenehbond();
 		totalene+=hbond_ene;
 		if(dispflag) cout<<"Hbond energy: "<< hbond_ene <<endl;
+		//cout<<"Hbond energy: "<< hbond_ene <<endl;
+	}
+
+	if(weightenergy["BB Hbond energy"] > 0){
+		double bbhbond_ene = weightenergy["BB Hbond energy"] * calcenebbhbond();
+		totalene+=bbhbond_ene;
+		if(dispflag) cout<<"BB Hbond energy: "<< bbhbond_ene <<endl;
+	}
+
+	if(weightenergy["BBBase Hbond energy"] > 0){
+		double bbbasehbond_ene = weightenergy["BBBase Hbond energy"] * calcenebbbasehbond();
+		totalene+=bbbasehbond_ene;
+		if(dispflag) cout<<"BBBase Hbond energy: "<< bbbasehbond_ene <<endl;
 	}
 	
 	if(weightenergy["BP energy"] > 0){

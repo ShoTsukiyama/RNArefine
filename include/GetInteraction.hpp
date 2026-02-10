@@ -43,5 +43,6 @@ bool loadBP(string bppath, string seq, map<string, int> &chainstr2chainidx, map<
 bool loadST(string stpath, string seq, map<string, int> &chainstr2chainidx, map<int, map<int, int>> &pdbidx2seqidx, vector<pair<double,vector<size_t> > > &stack_vec, int &stackseqst, int &stackseqend);
 void getstmap(const vector<pair<double,vector<size_t>>> &stack_vec, vector<vector<pair<int, double>>> &stackmap, const int &length);
 void getmultidistmap(const ModelUnit &pdb_entry, const string &distdir, const string &seq, vector<vector<vector<double>>> &distmaps, vector<vector<vector<bool>>> &distmapflags, vector<vector<int>> &distmapranges);
+void get_edge_loop(vector<pair<double,vector<size_t>>> &bp_vec, vector<pair<double,vector<size_t>>> &noncbp_vec, int numbb, vector<double> &nt_weight);
 
 #endif

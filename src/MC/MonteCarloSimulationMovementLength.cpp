@@ -117,7 +117,7 @@ double MonteCarloSimulation::getmovlengval(double val, double mean, double std, 
 	return newval;
 }
 
-void MonteCarloSimulation::selecttargetleng(int &trandpos, int &lengtype, double r)
+bool MonteCarloSimulation::selecttargetleng(int &trandpos, int &lengtype, double r)
 {
 	double randval=Random();
 
@@ -186,6 +186,10 @@ void MonteCarloSimulation::selecttargetleng(int &trandpos, int &lengtype, double
 				tenergy+=prob[i][j];
 			}
 		}
+
+		if(tenergy < 0.000001){
+			return false;
+		}
 		
 		double wpos=Random()*tenergy;
 		double currentenen=0;
@@ -198,7 +202,7 @@ void MonteCarloSimulation::selecttargetleng(int &trandpos, int &lengtype, double
 				if(currentenen <= wpos && wpos < nextene){
 					trandpos=i;
 					lengtype=j;
-					return;
+					return true;
 				}
 				currentenen=nextene;
 			}
@@ -207,7 +211,9 @@ void MonteCarloSimulation::selecttargetleng(int &trandpos, int &lengtype, double
 		trandpos=Random()*numbb;
 		char base=refinestr[trandpos].aaa;
 		lengtype=int(AccAtomParamNum[base][3]*Random());
+		return true;
 	}
+	return false;
 }
 
 
@@ -215,7 +221,13 @@ bool MonteCarloSimulation::fmovementleng(double oldenergy, double &newenergy)
 {
 	bool flagtor;
 	int trandpos, lengtype;
-	selecttargetleng(trandpos, lengtype, 0.8);
+	bool selflag = selecttargetleng(trandpos, lengtype, 0.8);
+
+	if(selflag == 0){
+		newenergy=oldenergy+1000000000;
+		return false;
+	}
+
 	char base=refinestr[trandpos].aaa;
 
 	//cout<<"=============="<<endl;

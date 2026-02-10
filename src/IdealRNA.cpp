@@ -99,7 +99,7 @@ vector<string> getfilelist(string path)
     return strs;
 }
 
-map<string, vector<ModelUnit>> loadtemplatestrs(string basepath, vector<string> subdirs)
+map<string, vector<ModelUnit>> loadtemplatestrs(string basepath, vector<string> subdirs, bool disp)
 {
     //string basepath="../param/3nthelix_template"
     map<string, vector<ModelUnit>> template_rna;
@@ -115,6 +115,9 @@ map<string, vector<ModelUnit>> loadtemplatestrs(string basepath, vector<string> 
         for(int j=0; j<strs.size();j++){
             map<int, map<int, int>> pdbidx2seqidx;
             map<string, int> chainstr2chainidx;
+
+            if(disp & subdirs[i] == "A-U") cout<<j << "-" << strs[j].c_str()<<endl;
+
             template_rna[subdirs[i]][j] = read_pdb_structure(strs[j].c_str(), chainstr2chainidx, pdbidx2seqidx, 2, 0);
             standardize_atom_order(template_rna[subdirs[i]][j]);
         }
@@ -256,6 +259,7 @@ map<string, map<string, vector<DNTTEMPLATEUnit>>>parse_ideal_rna_distmap(string 
     return ideal_rna;
 }
 
+/*
 void get_score_map(string seq, const vector<pair<double,vector<size_t>>> &bp_vec, vector<double> &score_vec){
     int idx1, idx2;
     int minbpntidx = -1000000;
@@ -289,7 +293,4 @@ void get_score_map(string seq, const vector<pair<double,vector<size_t>>> &bp_vec
         }
     }
 }
-
-
-
-
+*/

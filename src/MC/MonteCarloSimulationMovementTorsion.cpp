@@ -95,7 +95,7 @@ void MonteCarloSimulation::settorntflap(double trandpos, double base, int tortyp
 	}
 }
 
-void MonteCarloSimulation::selecttargettor(int &trandpos, int &tortype, double r)
+bool MonteCarloSimulation::selecttargettor(int &trandpos, int &tortype, double r)
 {
 	double randval=Random();
 
@@ -205,6 +205,10 @@ void MonteCarloSimulation::selecttargettor(int &trandpos, int &tortype, double r
 				tenergy+=prob[i][j];
 			}
 		}
+
+		if(tenergy > -0.000001){
+			return false;
+		}
 		
 		double wpos=Random()*tenergy;
 		double currentenen=0;
@@ -217,7 +221,7 @@ void MonteCarloSimulation::selecttargettor(int &trandpos, int &tortype, double r
 				if(currentenen >= wpos && wpos > nextene){
 					trandpos=i;
 					tortype=j;
-					return;
+					return true;
 				}
 				currentenen=nextene;
 			}
@@ -226,7 +230,9 @@ void MonteCarloSimulation::selecttargettor(int &trandpos, int &tortype, double r
 		trandpos=Random()*numbb;
 		char base=refinestr[trandpos].aaa;
 		tortype=int(AccAtomParamNum[base][3]*Random());
+		return true;
 	}
+	return false;
 }
 
 double MonteCarloSimulation::sampletorsion(vector<double> &logdistr, double logtotal, vector<double> &center, double span)
@@ -252,7 +258,13 @@ bool MonteCarloSimulation::fmovementtor(double oldenergy, double &newenergy)
 {
 	bool flagtor;
 	int trandpos, tortype;
-	selecttargettor(trandpos, tortype, 0.8);
+	bool selflag = selecttargettor(trandpos, tortype, 0.8);
+
+	if(selflag == 0){
+		newenergy=oldenergy+1000000000;
+		return false;
+	}
+
 	char base=refinestr[trandpos].aaa;
 
 	//cout<<"=============="<<endl;

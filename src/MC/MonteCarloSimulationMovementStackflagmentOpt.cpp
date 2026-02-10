@@ -771,7 +771,7 @@ bool MonteCarloSimulation::fmovementstackfrag(double oldenergy, double &newenerg
 		stackingmap[i][stack_base2] = stmap[i][stack_base2];
 	}
 
-	MonteCarloSimulation::MCfragmentoptimization(initstructure, bindingmap, moveresidues, contactmap, stackingmap, basepairlist, noncbasepairlist, basepairscorelist, noncbasepairscorelist);
+	MonteCarloSimulation::MCfragmentoptimization(initstructure, bindingmap, moveresidues, contactmap, stackingmap, basepairlist, noncbasepairlist, basepairscorelist, noncbasepairscorelist, true);
 
 	if(stacktype == 1){
 		int istart=min(stack_base1-1, stack_base2-1);

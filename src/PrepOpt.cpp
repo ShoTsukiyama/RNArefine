@@ -428,18 +428,23 @@ void setinitobj(FragmentStructure &stru, const FragmentStructure &targetstr, con
     }
 }
 
-void setinitpairobj(FragmentStructure &stru, const FragmentStructure &targetstr, const vector<vector<bool>> &targetflag, vector<vector<Point3s>> &gradient, list<InitPairobj> &initpairobj, double K, vector<bool> &moveresidues){
+void setinitpairobj(FragmentStructure &stru, const FragmentStructure &targetstr, const vector<vector<bool>> &targetflag, const vector<double> &init_weight, vector<vector<Point3s>> &gradient, list<InitPairobj> &initpairobj, double K, vector<bool> &moveresidues){
     string base;
     int atom;
     vector<int> targetatoms= {0, 5};
     double x,y,z;
     double initlength;
+    double weight;
 
     for(int i=0;i<stru.residues.size();i++){
         if(!moveresidues[i]) continue;
 
         for(int j=0;j<stru.residues.size();j++){
-            if(!moveresidues[j]) continue;
+            if(i == j) continue;
+	    if(!moveresidues[j]) continue;
+
+            weight = min(init_weight[i], init_weight[j]);
+            //cout<<i << "-" << j << "-" << weight<<endl;
 
             for(int k=0;k<targetatoms.size();k++){
                 atom=targetatoms[k];
@@ -448,9 +453,9 @@ void setinitpairobj(FragmentStructure &stru, const FragmentStructure &targetstr,
                     y = targetstr.residues[i].atoms[atom].coord.y - targetstr.residues[j].atoms[atom].coord.y;
                     z = targetstr.residues[i].atoms[atom].coord.z - targetstr.residues[j].atoms[atom].coord.z;
 
-                    initlength = sqrt(x*x+y*y+z*z);
+                    initlength = sqrt(max(double(x*x+y*y+z*z), 1e-8));
 
-                    InitPairobj initpairobjone= InitPairobj::create(&stru.residues[i].atoms[atom].coord, &stru.residues[j].atoms[atom].coord, &gradient[i][atom], &gradient[j][atom], initlength, K);
+                    InitPairobj initpairobjone= InitPairobj::create(&stru.residues[i].atoms[atom].coord, &stru.residues[j].atoms[atom].coord, &gradient[i][atom], &gradient[j][atom], initlength,  weight * K);
                     initpairobj.push_back(initpairobjone);
                 }
             }
@@ -491,7 +496,7 @@ void settemplatepairobj(FragmentStructure &stru, const vector<FragmentStructure>
     }
 }
 
-void setbasepairobj(FragmentStructure &stru, vector<vector<Point3s>> &gradient, vector<vector<int>> &bindmap, const vector<vector<double>> &cbpmap, const vector<vector<double>> &noncbpmap, const double &K, list<BasePairobj> &bpobj)
+void setbasepairobj(FragmentStructure &stru, vector<vector<Point3s>> &gradient, const vector<vector<double>> &cbpmap, const vector<vector<double>> &noncbpmap, const double &K, list<BasePairobj> &bpobj)
 {
 	int i,j,k;
 	int res1, res2;
@@ -504,12 +509,13 @@ void setbasepairobj(FragmentStructure &stru, vector<vector<Point3s>> &gradient, 
         //cout<<bindmap[i].size()<<endl;
         res1=i;
         aat1 =  stru.residues[res1].restype;
-        for(j=i+1;j<stru.residues.size();j++){
-            //cout<<i << "-" << j<<endl;
+        for(j=i+1;j<stru.residues.size();j++)
+        {
             res2=j;
             aat2 =  stru.residues[res2].restype;
 
-            if(bindmap[i][j]==2){
+            if(cbpmap[i][j]>0){
+                //cout<<i << "-" << j << "-"<< K*cbpmap[i][j]<<endl;
                 AtomPtrs.clear();
                 Atomgrad.clear();
                 for(k=12;k<heavily_atom_num[aat1];k++){
@@ -528,7 +534,7 @@ void setbasepairobj(FragmentStructure &stru, vector<vector<Point3s>> &gradient, 
                     Atomgrad.push_back(resgradpt);
                 }
 
-                BasePairobj bpobjone(AtomPtrs, Atomgrad, bindmap[i][j]);
+                BasePairobj bpobjone(AtomPtrs, Atomgrad, K*cbpmap[i][j]);
                 bpobj.push_back(bpobjone);
             }
 
@@ -553,7 +559,7 @@ void setbasepairobj(FragmentStructure &stru, vector<vector<Point3s>> &gradient, 
                     Atomgrad.push_back(resgradpt);
                 }
 
-                BasePairobj bpobjone(AtomPtrs, Atomgrad, noncbpmap[i][j]);
+                BasePairobj bpobjone(AtomPtrs, Atomgrad, K*noncbpmap[i][j]);
                 bpobj.push_back(bpobjone);
             }
             */
@@ -722,9 +728,10 @@ void stack_superimpose(FragmentStructure &stru, const ModelUnit &ideal_rna_one, 
         vec.y=stru.residues[res2].atoms[atom].coord.y-xyztmp[1];
         vec.z=stru.residues[res2].atoms[atom].coord.z-xyztmp[2];
 
-        rmsd+=bf.norm(vec);
+        rmsd+=(vec.x*vec.x+vec.y*vec.y+vec.z*vec.z);
         count+=1;
     }
+    rmsd=sqrt(rmsd/count);
 }
 
 void selectstackfrag(FragmentStructure &stru, vector<vector<Point3s>> &gradient, int res1, int res2, const vector<ModelUnit> &ideal_rna, int stidx, vector<vector<int>> &indices, vector<vector<int>> &orders, int ord, const int &sttype, double K, list<StackTemplateobj2> &stackobj)
@@ -881,37 +888,6 @@ void selectstackfrag(FragmentStructure &stru, vector<vector<Point3s>> &gradient,
     base1 = stru.residues[res1].restype;
     base2 = stru.residues[res2].restype;
     baseorder=0;
-
-	//static map<string, vector<int>> targetatoms={
-		//{"A",{6, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21}},
-                //{"C",{6, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19}},
-                //{"G",{6, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22}},
-                //{"U",{6, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19}}
-	//};
-
-        //static map<string, vector<int>> targetatoms={
-	        //{"A",{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21}},
-                //{"C",{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19}},
-                //{"G",{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22}},
-                //{"U",{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19}}
-	//};
-
-    //static map<string, vector<int>> targetatoms={
-        //{"A",{12, 13, 14, 15, 16, 17, 18, 19, 20, 21}},
-        //{"C",{12, 13, 14, 15, 16, 17, 18, 19}},
-        //{"G",{12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22}},
-        //{"U",{12, 13, 14, 15, 16, 17, 18, 19}}
-    //};
-
-    /*
-    static map<string, vector<int>> targetatoms={
-	{"A",{0,1,2,3,4,5,6,7,8,12,13,14,15,16,17,18,19,20,21}},
-        {"C",{0,1,2,3,4,5,6,7,8,12,13,14,15,16,17,18,19}},
-        {"G",{0,1,2,3,4,5,6,7,8,12,13,14,15,16,17,18,19,20,21,22}},
-        {"U",{0,1,2,3,4,5,6,7,8,12,13,14,15,16,17,18,19}}
-	};
-    */
-
     
     static map<string, vector<int>> targetatoms={
 	    {"A",{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21}},
@@ -926,22 +902,6 @@ void selectstackfrag(FragmentStructure &stru, vector<vector<Point3s>> &gradient,
         {"G",{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22}},
         {"U",{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19}}
     };
-
-    /*
-    static map<string, vector<int>> targetatoms={
-	    {"A",{12,13,14,15,16,17,18,19,20,21}},
-        {"C",{12,13,14,15,16,17,18,19}},
-        {"G",{12,13,14,15,16,17,18,19,20,21,22}},
-        {"U",{12,13,14,15,16,17,18,19}}
-	};
-
-    static map<string, vector<int>> targetatoms_dist={
-        {"A",{12, 13, 14, 15, 16, 18, 19, 20, 21}},
-        {"C",{12, 13, 15, 16, 18, 19}},
-        {"G",{12, 13, 14, 15, 16, 18, 19, 21, 22}},
-        {"U",{12, 13, 15, 16, 18, 19}}
-    };
-    */
 
 	vector<vector<double> > xyz_list1(targetatoms[base1].size()+targetatoms[base2].size(), vector<double>(3,0));
     vector<vector<double> > xyz_list2(targetatoms[base1].size()+targetatoms[base2].size(), vector<double>(3,0));
@@ -986,7 +946,7 @@ void selectstackfrag(FragmentStructure &stru, vector<vector<Point3s>> &gradient,
 			vec.y=stru.residues[res1].atoms[atom].coord.y-xyztmp[1];
 			vec.z=stru.residues[res1].atoms[atom].coord.z-xyztmp[2];
 
-			rmsd+=bf.norm(vec);
+			rmsd+=(vec.x*vec.x+vec.y*vec.y+vec.z*vec.z);
 			count+=1;
 		}
 
@@ -998,9 +958,11 @@ void selectstackfrag(FragmentStructure &stru, vector<vector<Point3s>> &gradient,
 			vec.y=stru.residues[res2].atoms[atom].coord.y-xyztmp[1];
 			vec.z=stru.residues[res2].atoms[atom].coord.z-xyztmp[2];
 
-			rmsd+=bf.norm(vec);
+			rmsd+=(vec.x*vec.x+vec.y*vec.y+vec.z*vec.z);
 			count+=1;
 		}
+
+        rmsd = sqrt(rmsd/count);
 
 		if(minrmsd > rmsd){
             minrmsd=rmsd;
@@ -1050,7 +1012,7 @@ void selectstackfrag(FragmentStructure &stru, vector<vector<Point3s>> &gradient,
 				vec.x=stru.residues[res2].atoms[atom].coord.x-xyztmp[0];
 				vec.y=stru.residues[res2].atoms[atom].coord.y-xyztmp[1];
 				vec.z=stru.residues[res2].atoms[atom].coord.z-xyztmp[2];
-				rmsd+=bf.norm(vec);
+				rmsd+=(vec.x*vec.x+vec.y*vec.y+vec.z*vec.z);
 				count+=1;
 			}
 
@@ -1060,9 +1022,11 @@ void selectstackfrag(FragmentStructure &stru, vector<vector<Point3s>> &gradient,
 				vec.x=stru.residues[res1].atoms[atom].coord.x-xyztmp[0];
 				vec.y=stru.residues[res1].atoms[atom].coord.y-xyztmp[1];
 				vec.z=stru.residues[res1].atoms[atom].coord.z-xyztmp[2];
-				rmsd+=bf.norm(vec);
+				rmsd+=(vec.x*vec.x+vec.y*vec.y+vec.z*vec.z);
 				count+=1;
 			}
+
+            rmsd = sqrt(rmsd/count);
 
 			if(minrmsd > rmsd){
 				minrmsd=rmsd;
@@ -1138,7 +1102,7 @@ void setstackingobj(FragmentStructure &stru, vector<vector<Point3s>> &gradient, 
                 //cout<<res1 << "-" << res2 << "-" << stackmap[i][j].first<<endl;
 
                 if(stackmap[i][j].first == 2){
-                    selectstackfrag(stru, gradient, res1, res2, ideal_rna.at("stacking_adj").at(base1+"_"+base2), stackdistmap.at("stacking_adj").at(base1+"_"+base2), 1, minfragidx, minrmsd, baseorder, K, stackobj);
+                    selectstackfrag(stru, gradient, res1, res2, ideal_rna.at("stacking_adj").at(base1+"_"+base2), stackdistmap.at("stacking_adj").at(base1+"_"+base2), 1, minfragidx, minrmsd, baseorder, stackmap[i][j].second*K, stackobj);
                 }else{
                     map<string, string> basestackname = {{"A_A", "A_A"}, {"A_C", "A_C"}, {"A_G", "A_G"}, {"A_U", "A_U"}, {"C_A", "A_C"}, {"C_C", "C_C"}, {"C_G", "C_G"}, {"C_U", "C_U"}, {"G_A", "A_G"}, {"G_C", "C_G"}, {"G_G", "G_G"}, {"G_U", "G_U"}, {"U_A", "A_U"}, {"U_C", "C_U"}, {"U_G", "G_U"}, {"U_U", "U_U"}};
                     
@@ -1233,42 +1197,59 @@ void selectbpfrag(FragmentStructure &stru, vector<vector<Point3s>> &gradient, in
     base2 = stru.residues[res2].restype;
 
     static map<string, vector<int>> targetatoms={
-	    {"A",{0,3,4,5,6,7,8,9,11,12,13,14,15,16,17,18,19,20,21}},
-        {"C",{0,3,4,5,6,7,8,9,11,12,13,14,15,16,17,18,19}},
-        {"G",{0,3,4,5,6,7,8,9,11,12,13,14,15,16,17,18,19,20,21,22}},
-        {"U",{0,3,4,5,6,7,8,9,11,12,13,14,15,16,17,18,19}}
+	    {"A",{0,1,2,3,4,5,6,7,8,9,11,12,13,14,15,16,17,18,19,20,21}},
+        {"C",{0,1,2,3,4,5,6,7,8,9,11,12,13,14,15,16,17,18,19}},
+        {"G",{0,1,2,3,4,5,6,7,8,9,11,12,13,14,15,16,17,18,19,20,21,22}},
+        {"U",{0,1,2,3,4,5,6,7,8,9,11,12,13,14,15,16,17,18,19}}
 	};
 
+    /*
     static map<string, vector<int>> targetatoms_dist={
         {"A",{12, 13, 14, 15, 16, 18, 19, 20, 21}},
         {"C",{12, 13, 15, 16, 18, 19}},
         {"G",{12, 13, 14, 15, 16, 18, 19, 21, 22}},
         {"U",{12, 13, 15, 16, 18, 19}}
     };
+    */
+
+    static map<string, vector<int>> targetatoms_dist={
+        {"A",{12, 13, 21}},
+        {"C",{12, 13, 19}},
+        {"G",{12, 13, 22}},
+        {"U",{12, 13, 19}}
+    };
 
 	vector<vector<double> > xyz_list1(targetatoms[base1].size()+targetatoms[base2].size(), vector<double>(3,0));
     vector<vector<double> > xyz_list2(targetatoms[base1].size()+targetatoms[base2].size(), vector<double>(3,0));
 
-    /*
-    if(order == 0){
-        base_idx_1=0;
-        base_idx_2=1;
-    }else{
-        base_idx_1=1;
-        base_idx_2=0;
-    }
-    */
     base_idx_1=0;
     base_idx_2=1;
+
+    count = 0;
+    for(j=0; j<targetatoms[base1].size();j++){
+        atom=targetatoms[base1][j];
+        xyz_list1[count][0]=stru.residues[res1].atoms[atom].coord.x;
+		xyz_list1[count][1]=stru.residues[res1].atoms[atom].coord.y;
+		xyz_list1[count][2]=stru.residues[res1].atoms[atom].coord.z;
+        count+=1;
+    }
+
+    for(j=0; j<targetatoms[base2].size();j++){
+        atom=targetatoms[base2][j];
+        xyz_list1[count][0]=stru.residues[res2].atoms[atom].coord.x;
+		xyz_list1[count][1]=stru.residues[res2].atoms[atom].coord.y;
+		xyz_list1[count][2]=stru.residues[res2].atoms[atom].coord.z;
+        count+=1;
+    }
     
 	for(i=0;i<ideal_rna.size();i++)
 	{
 		count = 0;
 		for(j=0; j<targetatoms[base1].size();j++){
 			atom=targetatoms[base1][j];
-			xyz_list1[count][0]=stru.residues[res1].atoms[atom].coord.x;
-			xyz_list1[count][1]=stru.residues[res1].atoms[atom].coord.y;
-			xyz_list1[count][2]=stru.residues[res1].atoms[atom].coord.z;
+			//xyz_list1[count][0]=stru.residues[res1].atoms[atom].coord.x;
+			//xyz_list1[count][1]=stru.residues[res1].atoms[atom].coord.y;
+			//xyz_list1[count][2]=stru.residues[res1].atoms[atom].coord.z;
 
 			xyz_list2[count][0]=ideal_rna[i].chains[0].residues[base_idx_1].atoms[atom].xyz[0];
 			xyz_list2[count][1]=ideal_rna[i].chains[0].residues[base_idx_1].atoms[atom].xyz[1];
@@ -1279,9 +1260,9 @@ void selectbpfrag(FragmentStructure &stru, vector<vector<Point3s>> &gradient, in
 
 		for(j=0; j<targetatoms[base2].size();j++){
 			atom=targetatoms[base2][j];
-			xyz_list1[count][0]=stru.residues[res2].atoms[atom].coord.x;
-			xyz_list1[count][1]=stru.residues[res2].atoms[atom].coord.y;
-			xyz_list1[count][2]=stru.residues[res2].atoms[atom].coord.z;
+			//xyz_list1[count][0]=stru.residues[res2].atoms[atom].coord.x;
+			//xyz_list1[count][1]=stru.residues[res2].atoms[atom].coord.y;
+			//xyz_list1[count][2]=stru.residues[res2].atoms[atom].coord.z;
 
 			xyz_list2[count][0]=ideal_rna[i].chains[0].residues[base_idx_2].atoms[atom].xyz[0];
 			xyz_list2[count][1]=ideal_rna[i].chains[0].residues[base_idx_2].atoms[atom].xyz[1];
@@ -1297,11 +1278,11 @@ void selectbpfrag(FragmentStructure &stru, vector<vector<Point3s>> &gradient, in
 		for(j=0; j<targetatoms[base1].size();j++){
 			atom=targetatoms[base1][j];
 			bf.Transform(xyz_list2[count],RotMatix,TranVect,xyztmp);
-			vec.x=stru.residues[res1].atoms[atom].coord.x-xyztmp[0];
-			vec.y=stru.residues[res1].atoms[atom].coord.y-xyztmp[1];
-			vec.z=stru.residues[res1].atoms[atom].coord.z-xyztmp[2];
+			vec.x=xyz_list1[count][0]-xyztmp[0];
+			vec.y=xyz_list1[count][1]-xyztmp[1];
+			vec.z=xyz_list1[count][2]-xyztmp[2];
 
-			rmsd+=bf.norm(vec);
+			rmsd+=(vec.x*vec.x+vec.y*vec.y+vec.z*vec.z);
 			count+=1;
 		}
 
@@ -1309,13 +1290,14 @@ void selectbpfrag(FragmentStructure &stru, vector<vector<Point3s>> &gradient, in
 			atom=targetatoms[base2][j];
 			bf.Transform(xyz_list2[count],RotMatix,TranVect,xyztmp);
 
-			vec.x=stru.residues[res2].atoms[atom].coord.x-xyztmp[0];
-			vec.y=stru.residues[res2].atoms[atom].coord.y-xyztmp[1];
-			vec.z=stru.residues[res2].atoms[atom].coord.z-xyztmp[2];
+			vec.x=xyz_list1[count][0]-xyztmp[0];
+			vec.y=xyz_list1[count][1]-xyztmp[1];
+			vec.z=xyz_list1[count][2]-xyztmp[2];
 
-			rmsd+=bf.norm(vec);
+			rmsd+=(vec.x*vec.x+vec.y*vec.y+vec.z*vec.z);
 			count+=1;
 		}
+        rmsd = sqrt(rmsd/count);
 
 		if(minrmsd > rmsd){
             minrmsd=rmsd;
@@ -1325,20 +1307,22 @@ void selectbpfrag(FragmentStructure &stru, vector<vector<Point3s>> &gradient, in
 	}
 
     //cout<<res1 << "-" << res2 << "-" << minfragidx << "-" << minrmsd << "-" << sttype<<endl;
-    //cout<<minrmsd << "-" << minfragidx << "-" << baseorder<<endl;
+    //cout<<minrmsd << "-" << minfragidx<<endl;
 
     double length, dx, dy, dz;
     for(int i=0;i<targetatoms_dist[base1].size();i++){
         atom1=targetatoms_dist[base1][i];
         for(int j=0;j<targetatoms_dist[base2].size();j++){
             atom2=targetatoms_dist[base2][j];
+
+            //if(atom1 != atom2) continue;
             
             dx = stru.residues[res1].atoms[atom1].coord.x - stru.residues[res2].atoms[atom2].coord.x;
             dy = stru.residues[res1].atoms[atom1].coord.y - stru.residues[res2].atoms[atom2].coord.y;
             dz = stru.residues[res1].atoms[atom1].coord.z - stru.residues[res2].atoms[atom2].coord.z;
             length = sqrt(dx*dx + dy*dy+ dz*dz);
             //cout<< atom1 << "-" << atom2 << "-" << length << "-" << distmap[minfragidx][atom1][atom2]<<endl;
-
+            
             BPdistobj bpdistobjone(&stru.residues[res1].atoms[atom1].coord, &stru.residues[res2].atoms[atom2].coord, &gradient[res1][atom1], &gradient[res2][atom2], distmap[minfragidx][atom1][atom2], K);
             bpdistobj.push_back(bpdistobjone);
         }
@@ -1346,7 +1330,7 @@ void selectbpfrag(FragmentStructure &stru, vector<vector<Point3s>> &gradient, in
 }
 
 
-void setbpobj(FragmentStructure &stru, vector<vector<Point3s>> &gradient, const map<string, map<string, vector<ModelUnit>>> &ideal_rna, vector<vector<int>> &bpmap, const map<string, vector<vector<vector<double>>>> &bpdistmap, double K, list<BPdistobj> &bpdistobj)
+void setbpobj(FragmentStructure &stru, vector<vector<Point3s>> &gradient, const vector<vector<double>> &cbpmap, const map<string, map<string, vector<ModelUnit>>> &ideal_rna, const map<string, vector<vector<vector<double>>>> &bpdistmap, double K, list<BPdistobj> &bpdistobj)
 {
 	int i,j,k;
 	int res1, res2;
@@ -1363,13 +1347,13 @@ void setbpobj(FragmentStructure &stru, vector<vector<Point3s>> &gradient, const 
         res1=i;
         base1 =  stru.residues[res1].restype;
         for(j=i+1;j<stru.residues.size();j++){
-            if(bpmap[i][j]==2){
+            if(cbpmap[i][j] > 0){
                 res2=j;
                 base2 = stru.residues[res2].restype;
                 if(base1+"-"+base2 == basebpname[base1+"-"+base2]){
-                    selectbpfrag(stru, gradient, res1, res2, ideal_rna.at("bp").at(basebpname[base1+"-"+base2]), bpdistmap.at(basebpname[base1+"-"+base2]), minfragidx, minrmsd, K, bpdistobj);
+                    selectbpfrag(stru, gradient, res1, res2, ideal_rna.at("bp").at(basebpname[base1+"-"+base2]), bpdistmap.at(basebpname[base1+"-"+base2]), minfragidx, minrmsd, K*cbpmap[i][j], bpdistobj);
                 }else{
-                    selectbpfrag(stru, gradient, res2, res1, ideal_rna.at("bp").at(basebpname[base1+"-"+base2]), bpdistmap.at(basebpname[base1+"-"+base2]), minfragidx, minrmsd, K, bpdistobj);
+                    selectbpfrag(stru, gradient, res2, res1, ideal_rna.at("bp").at(basebpname[base1+"-"+base2]), bpdistmap.at(basebpname[base1+"-"+base2]), minfragidx, minrmsd, K*cbpmap[i][j], bpdistobj);
                 }
             }
         }
@@ -1428,9 +1412,10 @@ void nt_superimpose(FragmentStructure &stru, const ModelUnit &ideal_rna_one, int
         vec.y=xyz_list1[count][1]-xyztmp[1];
         vec.z=xyz_list1[count][2]-xyztmp[2];
 
-        rmsd+=bf.norm(vec);
+        rmsd+=(vec.x*vec.x+vec.y*vec.y+vec.z*vec.z);
         count+=1;
     }
+    rmsd=sqrt(rmsd/count);
 }
 
 
@@ -1648,62 +1633,98 @@ void setangleobj(FragmentStructure &stru, vector<vector<Point3s>> &gradient, int
     //exit(1);
 }
 
-void setdihedralobj(FragmentStructure &stru, vector<vector<Point3s>> &gradient, int trandposst, int trandposed, const map<string, vector<pair<vector<int>, vector<double>>>> &hydtorsionparam, map<string, vector<pair<vector<int>, vector<double>>>> torsionparam, double K, list<BondDihedralobj> &dihedralobj, vector<bool> &moveresidues)
+void setdihedralobj(FragmentStructure &stru, vector<vector<Point3s>> &gradient, int trandposst, int trandposed, const map<string, vector<vector<double>>> &bbtorsion, double K, list<BondDihedralobj> &dihedralobj, vector<bool> &moveresidues)
 {
     int i,j,k;
     int res1, res2, res3, res4;
     int atom1, atom2, atom3, atom4;
+    int pos1, pos2, pos3, pos4;
+    string base1, base2;
     double idv, dki, dphase, dpn;
     string base;
 
-    for(i=trandposst;i<trandposed;i++){
+    vector<vector<int>> torsion_idx_list = {{5,7,8,0}, {7,8,0,3}, {8,0,3,4}, {0,3,4,5}, {3,4,5,7}};
+    vector<vector<int>> torsion_rel_pos = {{0,0,0,1}, {0,0,1,1}, {0,1,1,1}, {1,1,1,1}, {1,1,1,1}};
+
+    for(i=trandposst;i<trandposed-1;i++){
         base = stru.residues[i].restype;
+        res1=i;
+        res2=i+1;
+        base1 =  stru.residues[res1].restype;
+        base2 = stru.residues[res2].restype;
 
-        const vector<pair<vector<int>, vector<double>>> &torsionparam_temp = torsionparam.at(base);
-        for(j=0;j<torsionparam_temp.size();j++){
-            atom1 = torsionparam_temp[j].first[0];
-            atom2 = torsionparam_temp[j].first[1];
-            atom3 = torsionparam_temp[j].first[2];
-            atom4 = torsionparam_temp[j].first[3];
-
-            res1=i; res2=i; res3=i; res4=i;
-
-            idv = torsionparam_temp[j].second[0];
-            dki = torsionparam_temp[j].second[1];
-            dphase = torsionparam_temp[j].second[2];
-            dpn = torsionparam_temp[j].second[3];
-
-            //cout<<atom1 << "-" << atom2 << "-" << atom3 << "-" << atom4<<endl;
-            //cout<<idv << "-" << dki << "-" << dphase << "-" << dpn<<endl;
-            
-            BondDihedralobj dihedralobjone = BondDihedralobj::create(&stru.residues[res1].atoms[atom1].coord, &stru.residues[res2].atoms[atom2].coord, &stru.residues[res3].atoms[atom3].coord, &stru.residues[res4].atoms[atom4].coord, &gradient[res1][atom1], &gradient[res2][atom2], &gradient[res3][atom3], &gradient[res4][atom4], K, dpn, dphase, idv);
-            dihedralobj.push_back(dihedralobjone);
+        if(moveresidues[res1] || moveresidues[res2])
+        {
+            for(j=0;j<torsion_idx_list.size();j++){
+                atom1 = torsion_idx_list[j][0]; atom2 = torsion_idx_list[j][1]; atom3 = torsion_idx_list[j][2]; atom4 = torsion_idx_list[j][3];
+                pos1 = res1 + torsion_rel_pos[j][0]; pos2 = res1 + torsion_rel_pos[j][1]; pos3 = res1 + torsion_rel_pos[j][2]; pos4 = res1 + torsion_rel_pos[j][3];
+                BondDihedralobj dihedralobjone1 = BondDihedralobj::create(&stru.residues[pos1].atoms[atom1].coord, &stru.residues[pos2].atoms[atom2].coord, &stru.residues[pos3].atoms[atom3].coord, &stru.residues[pos4].atoms[atom4].coord, &gradient[pos1][atom1], &gradient[pos2][atom2], &gradient[pos3][atom3], &gradient[pos4][atom4], K, bbtorsion.at(base1)[j][0], bbtorsion.at(base1)[j][1]);
+                dihedralobj.push_back(dihedralobjone1);
+            }
         }
-
-
-        const vector<pair<vector<int>, vector<double>>> &hydtorsionparam_temp = hydtorsionparam.at(base);
-
-        for(j=0;j<hydtorsionparam_temp.size();j++){
-            atom1 = hydtorsionparam_temp[j].first[0];
-            atom2 = hydtorsionparam_temp[j].first[1];
-            atom3 = hydtorsionparam_temp[j].first[2];
-            atom4 = hydtorsionparam_temp[j].first[3];
-
-            res1=i; res2=i; res3=i; res4=i;
-
-            idv = hydtorsionparam_temp[j].second[0];
-            dki = hydtorsionparam_temp[j].second[1];
-            dphase = hydtorsionparam_temp[j].second[2];
-            dpn = hydtorsionparam_temp[j].second[3];
-
-            //cout<<atom1 << "-" << atom2 << "-" << atom3 << "-" << atom4<<endl;
-            //cout<<idv << "-" << dki << "-" << dphase << "-" << dpn<<endl;
-            
-            BondDihedralobj dihedralobjone = BondDihedralobj::create(&stru.residues[res1].atoms[atom1].coord, &stru.residues[res2].atoms[atom2].coord, &stru.residues[res3].atoms[atom3].coord, &stru.residues[res4].atoms[atom4].coord, &gradient[res1][atom1], &gradient[res2][atom2], &gradient[res3][atom3], &gradient[res4][atom4], K, dpn, dphase, idv);
-            dihedralobj.push_back(dihedralobjone);
-        }
-
     }
+}
+
+void setsugardihedralobj(FragmentStructure &stru, vector<vector<Point3s>> &gradient, int trandposst, int trandposed, const map<string, vector<vector<vector<double>>>> &torsionparam, double K, list<MultiBondDihedralobj> &sugardihedralobj, vector<bool> &moveresidues)
+{
+    map<string, vector<int>> sugaratomidx = {
+        {"A", {4,5,7,8,6,11,9,3,12,21,0}},
+        {"C", {4,5,7,8,6,11,9,3,12,13,0}},
+        {"G", {4,5,7,8,6,11,9,3,12,22,0}},
+        {"U", {4,5,7,8,6,11,9,3,12,13,0}},
+    };
+    vector<int> resrelpos = {0,0,0,0,0,0,0,0,0,0,1};
+
+    for(int i=trandposst;i<trandposed-1;i++)
+	{
+		string base = stru.residues[i].restype;
+
+        vector<Point3s*> AtomPtrs;
+        vector<Point3s*> Atomgrad;
+        vector<vector<vector<double*>>> ideals;
+
+        for(int j=0;j<sugaratomidx[base].size();j++){
+            int k = sugaratomidx[base][j];
+            int pos = i + resrelpos[j];
+            Point3s* respt = &stru.residues[pos].atoms[k].coord;
+            AtomPtrs.push_back(respt);
+
+            Point3s* resgradpt = &gradient[pos][k];
+            Atomgrad.push_back(resgradpt);
+        }
+
+        ideals.resize(2);
+        for(int j=0;j<2;j++){
+            for(int k=0;k<9;k++){
+
+                const double& val1 = torsionparam.at(base)[j][k][0];
+                const double& val2 = torsionparam.at(base)[j][k][1];
+
+                double* idealpt1 = const_cast<double*>(&val1);
+                double* idealpt2 = const_cast<double*>(&val2);
+
+                //cout<<*idealpt1<<"-"<<*idealpt2<<endl;
+                ideals[j].push_back({idealpt1, idealpt2});
+
+                /*
+                double val1 = torsionparam.at(base)[j][k][0];
+                double val2 = torsionparam.at(base)[j][k][1];
+
+                static vector<double> global_ideal_values; 
+                size_t old_size = global_ideal_values.size();
+                global_ideal_values.push_back(val1);
+                global_ideal_values.push_back(val2);
+                */
+
+                //ideals[j].push_back({&global_ideal_values[old_size], &global_ideal_values[old_size + 1]});
+                
+            }
+        }
+
+        MultiBondDihedralobj multibangleobjone = MultiBondDihedralobj(AtomPtrs, Atomgrad, ideals, K);
+        sugardihedralobj.push_back(multibangleobjone);
+    }
+    //exit(1);
 }
 
 void setimpropersobj(FragmentStructure &stru, vector<vector<Point3s>> &gradient, int trandposst, int trandposed, list<BondAngleobj> &bangleobj, list<BondImpropersobj> &improperobj)
@@ -1874,9 +1895,15 @@ void getgradientbangle(list<BondAngleobj> &bangleobj){
 	}
 }
 
-void getgradienthydtorsion(list<BondDihedralobj> &dihedralobj){
+void getgradienttorsion(list<BondDihedralobj> &dihedralobj){
 	for (std::list<BondDihedralobj>::const_iterator it = dihedralobj.begin(); it != dihedralobj.end(); ++it) {
 		it->calcgradientdihedral();
+	}
+}
+
+void getgradientsugartorsion(list<MultiBondDihedralobj> &sugardihedralobj){
+	for (std::list<MultiBondDihedralobj>::iterator it = sugardihedralobj.begin(); it != sugardihedralobj.end(); ++it) {
+		it->calcgradientmultidihedral();
 	}
 }
 
@@ -1889,10 +1916,19 @@ double getenergybangle(list<BondAngleobj> &bangleobj){
 	return energy;
 }
 
-double getenergyhydtor(list<BondDihedralobj> &hydtorobj){
+double getenergytor(list<BondDihedralobj> &torobj){
     double energy=0.0;
-	for (std::list<BondDihedralobj>::const_iterator it = hydtorobj.begin(); it != hydtorobj.end(); ++it) {
+	for (std::list<BondDihedralobj>::const_iterator it = torobj.begin(); it != torobj.end(); ++it) {
 		energy+=it->calcenergydihedral();
+	}
+	
+	return energy;
+}
+
+double getenergysugartorsion(list<MultiBondDihedralobj> &sugardihedralobj){
+    double energy=0.0;
+	for (std::list<MultiBondDihedralobj>::const_iterator it = sugardihedralobj.begin(); it != sugardihedralobj.end(); ++it) {
+		energy+=it->calcenergymultidihedral();
 	}
 	
 	return energy;
@@ -1989,12 +2025,14 @@ double getenergynttemp(list<SingleNtTemplateobj> &nttempobj){
 }
 
 
-void getgradient(list<BondLengthobj> &blengthobj, list<BondAngleobj> &bangleobj, list<BondDihedralobj> &dihedralobj, list<BasePairobj> &baseplaneobj, list<BasePairobj> &basepairobj, list<BPdistobj> &bpdistobj, list<Stackingobj> &stackobj, list<StackGeoobjMC> &stackgeoobj, list<InitPosobj> &binitobj, list<InitPairobj> &binitpairobj, list<InitPairobj> &btemplatepairobj, list<TElectrobj> &telecteobj, list<LennardsJobj> &ljobj, list<Hbondobj> &hbondobj, list<Hbond2hydobj> &hbondbpobj, list<Clashobj> &clashobj, list<SingleNtTemplateobj> &nttempobj)
+void getgradient(list<BondLengthobj> &blengthobj, list<BondAngleobj> &bangleobj, list<BondDihedralobj> &dihedralobj, list<MultiBondDihedralobj> &sugardihedralobj, list<BasePairobj> &baseplaneobj, list<BasePairobj> &basepairobj, list<BPdistobj> &bpdistobj, list<Stackingobj> &stackobj, list<StackGeoobjMC> &stackgeoobj, list<InitPosobj> &binitobj, list<InitPairobj> &binitpairobj, list<InitPairobj> &btemplatepairobj, list<TElectrobj> &telecteobj, list<LennardsJobj> &ljobj, list<Hbondobj> &hbondobj, list<Hbond2hydobj> &hbondbpobj, list<Clashobj> &clashobj, list<SingleNtTemplateobj> &nttempobj)
 {
 	if(blengthobj.size() > 0) getgradientblength(blengthobj);
 	if(bangleobj.size() > 0) getgradientbangle(bangleobj);
-    if(dihedralobj.size() > 0) getgradienthydtorsion(dihedralobj);
+    if(dihedralobj.size() > 0) getgradienttorsion(dihedralobj);
+    if(sugardihedralobj.size() > 0) getgradientsugartorsion(sugardihedralobj);
 	if(basepairobj.size() > 0) getgradientbasepair(basepairobj);
+    if(baseplaneobj.size() > 0) getgradientbaseplane(baseplaneobj);
     if(bpdistobj.size() > 0) getgradientbasepairdist(bpdistobj);
     if(binitobj.size() > 0) getgradientinit(binitobj);
     if(binitpairobj.size() > 0) getgradientinitpair(binitpairobj);
@@ -2008,11 +2046,12 @@ void getgradient(list<BondLengthobj> &blengthobj, list<BondAngleobj> &bangleobj,
     if(nttempobj.size() > 0) getgradientnttemp(nttempobj);
 }
 
-void getgradientloop(list<BondLengthobj> &blengthobj, list<BondAngleobj> &bangleobj, list<BondDihedralobj> &dihedralobj, list<InitPosobj> &binitobj, list<InitPairobj> &binitpairobj, list<InitPairobj> &btemplatepairobj, list<TElectrobj> &telecteobj, list<LennardsJobj> &ljobj, list<Hbondobj> &hbondobj, list<Hbond2hydobj> &hbondbpobj, list<Clashobj> &clashobj, list<SingleNtTemplateobj> &nttempobj)
+void getgradientloop(list<BondLengthobj> &blengthobj, list<BondAngleobj> &bangleobj, list<BondDihedralobj> &dihedralobj, list<MultiBondDihedralobj> &sugardihedralobj, list<InitPosobj> &binitobj, list<InitPairobj> &binitpairobj, list<InitPairobj> &btemplatepairobj, list<TElectrobj> &telecteobj, list<LennardsJobj> &ljobj, list<Hbondobj> &hbondobj, list<Hbond2hydobj> &hbondbpobj, list<Clashobj> &clashobj, list<SingleNtTemplateobj> &nttempobj)
 {
 	if(blengthobj.size() > 0) getgradientblength(blengthobj);
 	if(bangleobj.size() > 0) getgradientbangle(bangleobj);
-    if(dihedralobj.size() > 0) getgradienthydtorsion(dihedralobj);
+    if(dihedralobj.size() > 0) getgradienttorsion(dihedralobj);
+    if(sugardihedralobj.size() > 0) getgradientsugartorsion(sugardihedralobj);
     if(binitobj.size() > 0) getgradientinit(binitobj);
     if(binitpairobj.size() > 0) getgradientinitpair(binitpairobj);
     if(btemplatepairobj.size() > 0) getgradienttemplatepair(btemplatepairobj);
@@ -2023,46 +2062,92 @@ void getgradientloop(list<BondLengthobj> &blengthobj, list<BondAngleobj> &bangle
     if(nttempobj.size() > 0) getgradientnttemp(nttempobj);
 }
 
-double getcovalentenergystem(list<BondLengthobj> &blengthobj, list<BondAngleobj> &bangleobj, list<BondDihedralobj> &dihedralobj, list<BasePairobj> &baseplaneobj, list<BasePairobj> &basepairobj, list<BPdistobj> &bpdistobj, list<Stackingobj> &stackobj, list<StackGeoobjMC> &stackgeoobj, list<InitPosobj> &binitobj, list<InitPairobj> &binitpairobj, list<InitPairobj> &btemplatepairobj, list<TElectrobj> &telecteobj, list<LennardsJobj> &ljobj, list<Hbondobj> &hbondobj, list<Hbond2hydobj> &hbondbpobj, list<Clashobj> &clashobj, list<SingleNtTemplateobj> &nttempobj)
+double getcovalentenergystem(list<BondLengthobj> &blengthobj, list<BondAngleobj> &bangleobj, list<BondDihedralobj> &dihedralobj, list<MultiBondDihedralobj> &sugardihedralobj, list<BasePairobj> &baseplaneobj, list<BasePairobj> &basepairobj, list<BPdistobj> &bpdistobj, list<Stackingobj> &stackobj, list<StackGeoobjMC> &stackgeoobj, list<InitPosobj> &binitobj, list<InitPairobj> &binitpairobj, list<InitPairobj> &btemplatepairobj, list<TElectrobj> &telecteobj, list<LennardsJobj> &ljobj, list<Hbondobj> &hbondobj, list<Hbond2hydobj> &hbondbpobj, list<Clashobj> &clashobj, list<SingleNtTemplateobj> &nttempobj)
 {
-    double lengthene, angleene,hydtorene, bpene, bpdistene, initene, initpairene, templatepairene, telecteene, ljene, hbondene, stackene, clashene, nttempene, stackgeoene;
-    lengthene=0; angleene=0; hydtorene=0; bpene=0; bpdistene=0; initene=0; initpairene=0; templatepairene=0; telecteene=0; ljene=0; hbondene=0; stackene=0; stackgeoene=0; clashene=0; nttempene=0;
-    if(blengthobj.size() > 0) lengthene=getenergyblength(blengthobj);
-    if(bangleobj.size() > 0) angleene=getenergybangle(bangleobj);
-    if(dihedralobj.size() > 0) hydtorene=getenergyhydtor(dihedralobj);
-    if(basepairobj.size() > 0) bpene=getenergybasepair(basepairobj);
-    if(bpdistobj.size() > 0) bpdistene=getenergybasepairdist(bpdistobj);
-    if(binitobj.size() > 0) initene=getenergyinit(binitobj);
-    if(binitpairobj.size() > 0) initpairene=getenergyinitpair(binitpairobj);
-    if(btemplatepairobj.size() > 0) templatepairene=getenergytemplatepair(btemplatepairobj);
-    if(telecteobj.size() > 0) telecteene=getenergyelectros(telecteobj);
-    //cout<<"telecteene"<<endl;
-    //cout<<telecteene<<endl;
-    if(ljobj.size() > 0) ljene=getenergylj(ljobj);
-    //cout<<"ljene"<<endl;
-    //cout<<ljene<<endl;
-    if(hbondobj.size() > 0) hbondene=getenergyhbond(hbondobj, hbondbpobj);
-    if(stackobj.size() > 0) stackene=getenergystacking(stackobj);
-    if(stackgeoobj.size() > 0) stackgeoene=getenergystackinggeo(stackgeoobj);
-    if(clashobj.size() > 0) clashene=getenergyclash(clashobj);
-    if(nttempobj.size() > 0) nttempene=getenergynttemp(nttempobj);
-    //cout<<"aaa-" << lengthene << "-" << angleene << "-" << initene << "-" << bpene << "-" << telecteene<< "-" << ljene << "-" << hbondene << "-" << stackene << "-" << clashene<<endl;
-    //exit(1);
+    bool disp = false;
+    double lengthene, angleene,torene, sugartorene, bplane, bpene, bpdistene, initene, initpairene, templatepairene, telecteene, ljene, hbondene, stackene, clashene, nttempene, stackgeoene;
+    lengthene=0; angleene=0; torene=0; sugartorene=0; bplane=0; bpene=0; bpdistene=0; initene=0; initpairene=0; templatepairene=0; telecteene=0; ljene=0; hbondene=0; stackene=0; stackgeoene=0; clashene=0; nttempene=0;
+    
+    if(blengthobj.size() > 0){
+        lengthene=getenergyblength(blengthobj);
+        if(disp) cout<<"Length: "<<lengthene<<endl;
+    }
+    if(bangleobj.size() > 0){
+        angleene=getenergybangle(bangleobj);
+        if(disp) cout<<"Angle: "<<angleene<<endl;
+    }
+    if(dihedralobj.size() > 0){
+        torene=getenergytor(dihedralobj);
+        if(disp) cout<<"Torsion: "<<torene<<endl;
+    }
+    if(sugardihedralobj.size() > 0){
+        sugartorene=getenergysugartorsion(sugardihedralobj);
+        if(disp) cout<<"Sugar tor: "<<sugartorene<<endl;
+    }
+    if(baseplaneobj.size() > 0){
+        bplane+=getenergybaseplane(baseplaneobj);
+        if(disp) cout<<"Base plane:" <<  bplane<<endl;
+    }
+    if(basepairobj.size() > 0){
+        bpene=getenergybasepair(basepairobj);
+        if(disp) cout<<"Base pair:" <<  bpene<<endl;
+    }
+    if(bpdistobj.size() > 0){
+        bpdistene=getenergybasepairdist(bpdistobj);
+        if(disp) cout<<"Base pair dist:" <<  bpdistene<<endl;
+    }
+    if(binitobj.size() > 0){
+        initene=getenergyinit(binitobj);
+        if(disp) cout<<"BInit:" << initene<<endl;
+    }
+    if(binitpairobj.size() > 0){
+        initpairene=getenergyinitpair(binitpairobj);
+        if(disp) cout<<"BInitPair:" <<  initpairene<<endl;
+    }
+    if(btemplatepairobj.size() > 0){
+        templatepairene=getenergytemplatepair(btemplatepairobj);
+        if(disp) cout<<"Template Dist:" <<  templatepairene<<endl;
+    }
+    if(telecteobj.size() > 0){
+        telecteene=getenergyelectros(telecteobj);
+        if(disp) cout<<"Electe:" <<  telecteene<<endl;
+    }
+    if(ljobj.size() > 0){
+        ljene=getenergylj(ljobj);
+        if(disp) cout<<"LJ:" <<  ljene<<endl;
+    }
+    if(hbondobj.size() > 0 || hbondbpobj.size() > 0){
+        hbondene=getenergyhbond(hbondobj, hbondbpobj);
+        if(disp) cout<<"Hbond:" <<  hbondene<<endl;
+    }
+    if(stackobj.size() > 0){
+        stackene=getenergystacking(stackobj);
+        if(disp) cout<<"Stack:" <<  stackene<<endl;
+    }
+    if(stackgeoobj.size() > 0){
+        stackgeoene=getenergystackinggeo(stackgeoobj);
+        if(disp) cout<<"Stack Geo:" <<  stackgeoene<<endl;
+    }
+    if(clashobj.size() > 0){
+        clashene=getenergyclash(clashobj);
+        if(disp) cout<<"Clash:" <<  clashene<<endl;
+    }
+    if(nttempobj.size() > 0){
+        nttempene=getenergynttemp(nttempobj);
+        if(disp) cout<<"Nt:" <<  nttempene<<endl;
+    }
 
-    //cout<<"init dist:" <<  initpairene<<endl;
-    //cout<<"Stack:" <<  stackene<<endl;
-    //cout<<lengthene+angleene+hydtorene+bpene+initene+initpairene+templatepairene+telecteene+ljene+hbondene+stackene+clashene<<endl;
-
-    return lengthene+angleene+hydtorene+bpene+bpdistene+initene+initpairene+templatepairene+telecteene+ljene+hbondene+stackene+stackgeoene+clashene+nttempene;
+    return lengthene+angleene+torene+sugartorene+bplane+bpene+bpdistene+initene+initpairene+templatepairene+telecteene+ljene+hbondene+stackene+stackgeoene+clashene+nttempene;
 }
 
-double getcovalentenergystemloop(list<BondLengthobj> &blengthobj, list<BondAngleobj> &bangleobj, list<BondDihedralobj> &dihedralobj, list<BasePairobj> &baseplaneobj, list<BasePairobj> &basepairobj, list<Stackingobj> &stackobj, list<StackGeoobjMC> &stackgeoobj, list<InitPosobj> &binitobj, list<InitPairobj> &binitpairobj, list<InitPairobj> &btemplatepairobj, list<TElectrobj> &telecteobj, list<LennardsJobj> &ljobj, list<Hbondobj> &hbondobj, list<Hbond2hydobj> &hbondbpobj, list<Clashobj> &clashobj, list<SingleNtTemplateobj> &nttempobj)
+double getcovalentenergystemloop(list<BondLengthobj> &blengthobj, list<BondAngleobj> &bangleobj, list<BondDihedralobj> &dihedralobj, list<MultiBondDihedralobj> &sugardihedralobj, list<BasePairobj> &baseplaneobj, list<BasePairobj> &basepairobj, list<Stackingobj> &stackobj, list<StackGeoobjMC> &stackgeoobj, list<InitPosobj> &binitobj, list<InitPairobj> &binitpairobj, list<InitPairobj> &btemplatepairobj, list<TElectrobj> &telecteobj, list<LennardsJobj> &ljobj, list<Hbondobj> &hbondobj, list<Hbond2hydobj> &hbondbpobj, list<Clashobj> &clashobj, list<SingleNtTemplateobj> &nttempobj)
 {
-    double lengthene, angleene,hydtorene, bpene, initene, initpairene, templatepairene, telecteene, ljene, hbondene, stackene, clashene, nttempene, stackgeoene;
-    lengthene=0; angleene=0; hydtorene=0; bpene=0; initene=0; initpairene=0; templatepairene=0; telecteene=0; ljene=0; hbondene=0; stackene=0; clashene=0; nttempene=0; stackgeoene=0;
+    double lengthene, angleene, torene, sugartorene, bpene, initene, initpairene, templatepairene, telecteene, ljene, hbondene, stackene, clashene, nttempene, stackgeoene;
+    lengthene=0; angleene=0; torene=0; sugartorene=0; bpene=0; initene=0; initpairene=0; templatepairene=0; telecteene=0; ljene=0; hbondene=0; stackene=0; clashene=0; nttempene=0; stackgeoene=0;
     if(blengthobj.size() > 0) lengthene=getenergyblength(blengthobj);
     if(bangleobj.size() > 0) angleene=getenergybangle(bangleobj);
-    if(dihedralobj.size() > 0) hydtorene=getenergyhydtor(dihedralobj);
+    if(dihedralobj.size() > 0) torene=getenergytor(dihedralobj);
+    if(sugardihedralobj.size() > 0) sugartorene=getenergysugartorsion(sugardihedralobj);
     if(basepairobj.size() > 0) bpene=getenergybasepair(basepairobj);
     if(binitobj.size() > 0) initene=getenergyinit(binitobj);
     if(binitpairobj.size() > 0) initpairene=getenergyinitpair(binitpairobj);
@@ -2076,7 +2161,7 @@ double getcovalentenergystemloop(list<BondLengthobj> &blengthobj, list<BondAngle
     if(nttempobj.size() > 0) nttempene=getenergynttemp(nttempobj);
     //cout<<"bbb-" << lengthene << "-" << angleene << "-" << bpene << "-" << initene << "-" << telecteene<< "-" << ljene << "-" << hbondene << "-" << stackene << "-" << clashene <<endl;
 
-    return lengthene+angleene+hydtorene+bpene+initene+initpairene+templatepairene+telecteene+ljene+hbondene+stackene+stackgeoene+clashene+nttempene;
+    return lengthene+angleene+torene+bpene+initene+initpairene+templatepairene+telecteene+ljene+hbondene+stackene+stackgeoene+clashene+nttempene;
 }
 
 double calcaveragenorm(vector<vector<Point3s>> &gradient, double clip_val)
@@ -2161,20 +2246,20 @@ void updatestructure(FragmentStructure &stru, const vector<vector<Point3s>> &gra
 	}
 }
 
-double goldenelectionsearch(FragmentStructure &stru, const vector<vector<Point3s>> &gradient, list<BondLengthobj> &blengthobj, list<BondAngleobj> &bangleobj, list<BondDihedralobj> &dihedralobj, list<BasePairobj> &baseplaneobj, list<BasePairobj> &basepairobj, list<BPdistobj> &bpdistobj, list<Stackingobj> &stackobj, list<StackGeoobjMC> &stackgeoobj, list<InitPosobj> &binitobj, list<InitPairobj> &binitpairobj, list<InitPairobj> &btemplatepairobj, list<TElectrobj> &telecteobj, list<LennardsJobj> &ljobj, list<Hbondobj> &hbondobj, list<Hbond2hydobj> &hbondbpobj, list<Clashobj> &clashobj, list<SingleNtTemplateobj> &nttempobj, vector<bool> &moveresidues)
+double goldenelectionsearch(FragmentStructure &stru, const vector<vector<Point3s>> &gradient, list<BondLengthobj> &blengthobj, list<BondAngleobj> &bangleobj, list<BondDihedralobj> &dihedralobj, list<MultiBondDihedralobj> &sugardihedralobj, list<BasePairobj> &baseplaneobj, list<BasePairobj> &basepairobj, list<BPdistobj> &bpdistobj, list<Stackingobj> &stackobj, list<StackGeoobjMC> &stackgeoobj, list<InitPosobj> &binitobj, list<InitPairobj> &binitpairobj, list<InitPairobj> &btemplatepairobj, list<TElectrobj> &telecteobj, list<LennardsJobj> &ljobj, list<Hbondobj> &hbondobj, list<Hbond2hydobj> &hbondbpobj, list<Clashobj> &clashobj, list<SingleNtTemplateobj> &nttempobj, vector<bool> &moveresidues)
 {
 	static const double goldenratio = 0.5*(sqrt(5.0)-1.);
 	double step = 1.0e-4;
 	double left = step*(1.0-goldenratio);
 	double right = step*goldenratio;
 
-	double energyst = getcovalentenergystem(blengthobj, bangleobj, dihedralobj, baseplaneobj, basepairobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
+	double energyst = getcovalentenergystem(blengthobj, bangleobj, dihedralobj, sugardihedralobj, baseplaneobj, basepairobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
 	
 	updatestructure(stru, gradient, -right, moveresidues);
-	double energyR = getcovalentenergystem(blengthobj, bangleobj, dihedralobj, baseplaneobj, basepairobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
+	double energyR = getcovalentenergystem(blengthobj, bangleobj, dihedralobj, sugardihedralobj, baseplaneobj, basepairobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
 
 	updatestructure(stru, gradient, right-left, moveresidues);
-	double energyL = getcovalentenergystem(blengthobj, bangleobj, dihedralobj, baseplaneobj, basepairobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
+	double energyL = getcovalentenergystem(blengthobj, bangleobj, dihedralobj, sugardihedralobj, baseplaneobj, basepairobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
 
     //cout<<energyst<< "-" << energyR << "-" << energyL << "-" << step<<endl;
 
@@ -2188,7 +2273,7 @@ double goldenelectionsearch(FragmentStructure &stru, const vector<vector<Point3s
 			energyR = energyL;
 			left = step*(1.-goldenratio);
 			updatestructure(stru, gradient, right-left, moveresidues);
-			energyL = getcovalentenergystem(blengthobj, bangleobj, dihedralobj, baseplaneobj, basepairobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
+			energyL = getcovalentenergystem(blengthobj, bangleobj, dihedralobj, sugardihedralobj, baseplaneobj, basepairobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
 		
             //cout<<"L-" << energyst<< "-" << energyR << "-" << energyL << "-" << step<<endl;
         
@@ -2200,7 +2285,7 @@ double goldenelectionsearch(FragmentStructure &stru, const vector<vector<Point3s
 			energyL = energyR;
             right = step*goldenratio;
             updatestructure(stru, gradient, -right, moveresidues);
-			energyR = getcovalentenergystem(blengthobj, bangleobj, dihedralobj, baseplaneobj, basepairobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
+			energyR = getcovalentenergystem(blengthobj, bangleobj, dihedralobj, sugardihedralobj, baseplaneobj, basepairobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
 			updatestructure(stru, gradient, right-left, moveresidues);
 
             //cout<<"R-" << energyst<< "-" << energyR << "-" << energyL << "-" << step<<endl;
@@ -2212,12 +2297,12 @@ double goldenelectionsearch(FragmentStructure &stru, const vector<vector<Point3s
     return (energyL+energyR)/2.;
 }
 
-double linesearch(FragmentStructure &stru, const vector<vector<Point3s>> &gradient, list<BondLengthobj> &blengthobj, list<BondAngleobj> &bangleobj, list<BondDihedralobj> &dihedralobj, list<BasePairobj> &baseplaneobj, list<BasePairobj> &basepairobj, list<BPdistobj> &bpdistobj, list<Stackingobj> &stackobj, list<StackGeoobjMC> &stackgeoobj, list<InitPosobj> &binitobj, list<InitPairobj> &binitpairobj, list<InitPairobj> &btemplatepairobj, list<TElectrobj> &telecteobj, list<LennardsJobj> &ljobj, list<Hbondobj> &hbondobj, list<Hbond2hydobj> &hbondbpobj, list<Clashobj> &clashobj, list<SingleNtTemplateobj> &nttempobj, vector<bool> &moveresidues, double alpha0, double rho, double beta)
+double linesearch(FragmentStructure &stru, const vector<vector<Point3s>> &gradient, list<BondLengthobj> &blengthobj, list<BondAngleobj> &bangleobj, list<BondDihedralobj> &dihedralobj, list<MultiBondDihedralobj> &sugardihedralobj, list<BasePairobj> &baseplaneobj, list<BasePairobj> &basepairobj, list<BPdistobj> &bpdistobj, list<Stackingobj> &stackobj, list<StackGeoobjMC> &stackgeoobj, list<InitPosobj> &binitobj, list<InitPairobj> &binitpairobj, list<InitPairobj> &btemplatepairobj, list<TElectrobj> &telecteobj, list<LennardsJobj> &ljobj, list<Hbondobj> &hbondobj, list<Hbond2hydobj> &hbondbpobj, list<Clashobj> &clashobj, list<SingleNtTemplateobj> &nttempobj, vector<bool> &moveresidues, double alpha0, double rho, double beta)
 {
     double alpha = alpha0;
 
     double new_energy;
-    double init_energy =  getcovalentenergystem(blengthobj, bangleobj, dihedralobj, baseplaneobj, basepairobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
+    double init_energy =  getcovalentenergystem(blengthobj, bangleobj, dihedralobj, sugardihedralobj, baseplaneobj, basepairobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
 
     double grad_norm_sq = 0.0;
     for (int i=0;i<gradient.size();i++) {
@@ -2230,7 +2315,7 @@ double linesearch(FragmentStructure &stru, const vector<vector<Point3s>> &gradie
     while (true) {
         //cout<<"linesearch-" << alpha<<endl;
         updatestructure(stru, gradient, -alpha, moveresidues);
-        new_energy =  getcovalentenergystem(blengthobj, bangleobj, dihedralobj, baseplaneobj, basepairobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
+        new_energy =  getcovalentenergystem(blengthobj, bangleobj, dihedralobj, sugardihedralobj, baseplaneobj, basepairobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
 
         if (new_energy <= init_energy) {
             break;
@@ -2245,20 +2330,20 @@ double linesearch(FragmentStructure &stru, const vector<vector<Point3s>> &gradie
     return new_energy;
 }
 
-double goldenelectionsearchloop(FragmentStructure &stru, const vector<vector<Point3s>> &gradient, list<BondLengthobj> &blengthobj, list<BondAngleobj> &bangleobj, list<BondDihedralobj> &dihedralobj, list<BasePairobj> &baseplaneobj, list<BasePairobj> &bpobj, list<Stackingobj> &stackobj, list<StackGeoobjMC> &stackgeoobj, list<InitPosobj> &binitobj, list<InitPairobj> &binitpairobj, list<InitPairobj> &btemplatepairobj, list<TElectrobj> &telecteobj, list<LennardsJobj> &ljobj, list<Hbondobj> &hbondobj, list<Hbond2hydobj> &hbondbpobj, list<Clashobj> &clashobj, list<SingleNtTemplateobj> &nttempobj, vector<bool> &moveresidues)
+double goldenelectionsearchloop(FragmentStructure &stru, const vector<vector<Point3s>> &gradient, list<BondLengthobj> &blengthobj, list<BondAngleobj> &bangleobj, list<MultiBondDihedralobj> &sugardihedralobj, list<BondDihedralobj> &dihedralobj, list<BasePairobj> &baseplaneobj, list<BasePairobj> &bpobj, list<Stackingobj> &stackobj, list<StackGeoobjMC> &stackgeoobj, list<InitPosobj> &binitobj, list<InitPairobj> &binitpairobj, list<InitPairobj> &btemplatepairobj, list<TElectrobj> &telecteobj, list<LennardsJobj> &ljobj, list<Hbondobj> &hbondobj, list<Hbond2hydobj> &hbondbpobj, list<Clashobj> &clashobj, list<SingleNtTemplateobj> &nttempobj, vector<bool> &moveresidues)
 {
 	static const double goldenratio = .5*(sqrt(5.)-1.);
 	double step = 1.e-4;
 	double left = step*(1.-goldenratio);
 	double right = step*goldenratio;
 
-	double energyst = getcovalentenergystemloop(blengthobj, bangleobj, dihedralobj, baseplaneobj, bpobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
+	double energyst = getcovalentenergystemloop(blengthobj, bangleobj, dihedralobj, sugardihedralobj, baseplaneobj, bpobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
 	
 	updatestructure(stru, gradient, -right, moveresidues);
-	double energyR = getcovalentenergystemloop(blengthobj, bangleobj, dihedralobj, baseplaneobj, bpobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
+	double energyR = getcovalentenergystemloop(blengthobj, bangleobj, dihedralobj, sugardihedralobj, baseplaneobj, bpobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
 
 	updatestructure(stru, gradient, right-left, moveresidues);
-	double energyL = getcovalentenergystemloop(blengthobj, bangleobj, dihedralobj, baseplaneobj, bpobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
+	double energyL = getcovalentenergystemloop(blengthobj, bangleobj, dihedralobj, sugardihedralobj, baseplaneobj, bpobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
 
 	int stepnum = 0;
 	while(fabs(step) > 1.e-8)
@@ -2270,14 +2355,14 @@ double goldenelectionsearchloop(FragmentStructure &stru, const vector<vector<Poi
 			energyR = energyL;
 			left = step*(1.-goldenratio);
 			updatestructure(stru, gradient, right-left, moveresidues);
-			energyL = getcovalentenergystemloop(blengthobj, bangleobj, dihedralobj, baseplaneobj, bpobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
+			energyL = getcovalentenergystemloop(blengthobj, bangleobj, dihedralobj, sugardihedralobj, baseplaneobj, bpobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
 		}else{
 			step = step - left;
 			left = right;
 			energyL = energyR;
 			right = step*goldenratio;
 			updatestructure(stru, gradient, -right, moveresidues);
-			energyR = getcovalentenergystemloop(blengthobj, bangleobj, dihedralobj, baseplaneobj, bpobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
+			energyR = getcovalentenergystemloop(blengthobj, bangleobj, dihedralobj, sugardihedralobj, baseplaneobj, bpobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
 			updatestructure(stru, gradient, right-left, moveresidues);
 		}
 	}
@@ -2635,10 +2720,11 @@ void gethbondpairs(FragmentStructure &superimposedstr, vector<vector<Point3s>> &
 }
 */
 
-bool checkhbond2(Point3s* teAtomHyd1, Point3s* teAtomHyd2, Point3s* teAtomDon, Point3s* teAtomAcc)
+bool checkhbond2(Point3s* teAtomHyd1, Point3s* teAtomHyd2, Point3s* teAtomDon, Point3s* teAtomAcc, double length_thresh = 4.5)
 {
 	Point3s vec23_1, vec23_2, vec23, vec13, vec21;
 
+    /*
 	vec23_1.x = teAtomAcc->x - teAtomHyd1->x;
 	vec23_1.y = teAtomAcc->y - teAtomHyd1->y;
 	vec23_1.z = teAtomAcc->z - teAtomHyd1->z;
@@ -2668,36 +2754,38 @@ bool checkhbond2(Point3s* teAtomHyd1, Point3s* teAtomHyd2, Point3s* teAtomDon, P
 
 		hydatom = 1;
 	}
+    */
 
 	vec13.x = teAtomDon->x - teAtomAcc->x;
 	vec13.y = teAtomDon->y - teAtomAcc->y;
 	vec13.z = teAtomDon->z - teAtomAcc->z;
 
-	double length21=sqrt(vec21.x*vec21.x+vec21.y*vec21.y+vec21.z*vec21.z+1e-8);
-	double length23=sqrt(vec23.x*vec23.x+vec23.y*vec23.y+vec23.z*vec23.z+1e-8);
+	//double length21=sqrt(vec21.x*vec21.x+vec21.y*vec21.y+vec21.z*vec21.z+1e-8);
+	//double length23=sqrt(vec23.x*vec23.x+vec23.y*vec23.y+vec23.z*vec23.z+1e-8);
 	double length13=sqrt(vec13.x*vec13.x+vec13.y*vec13.y+vec13.z*vec13.z+1e-8);
 
-	vec21.x /= length21; vec21.y /= length21; vec21.z /= length21;
-	vec23.x /= length23; vec23.y /= length23; vec23.z /= length23;
-	vec13.x /= length13; vec13.y /= length13; vec13.z /= length13;
+	//vec21.x /= length21; vec21.y /= length21; vec21.z /= length21;
+	//vec23.x /= length23; vec23.y /= length23; vec23.z /= length23;
+	//vec13.x /= length13; vec13.y /= length13; vec13.z /= length13;
 
-	double innerprot = vec21.x*vec23.x+vec21.y*vec23.y+vec21.z*vec23.z;
-	double dcosangle = innerprot;
-	if     (dcosangle >  1.) dcosangle =  1.;
-	else if(dcosangle < -1.) dcosangle = -1.;
+	//double innerprot = vec21.x*vec23.x+vec21.y*vec23.y+vec21.z*vec23.z;
+	//double dcosangle = innerprot;
+	//if     (dcosangle >  1.) dcosangle =  1.;
+	//else if(dcosangle < -1.) dcosangle = -1.;
 
-	double angle = acos(dcosangle)*DEGRAD;
+	//double angle = acos(dcosangle)*DEGRAD;
 
 	//cout<<angle << "-" << length13 << "-" << (length13 <= 4.5)<<endl;
 
 	//return ((angle >= 95) && (length13 <= 4.5));
-	return (length13 <= 4.5);
+	return (length13 <= length_thresh);
 }
 
-bool checkhbond(Point3s* teAtomHyd, Point3s* teAtomDon, Point3s* teAtomAcc)
+bool checkhbond(Point3s* teAtomHyd, Point3s* teAtomDon, Point3s* teAtomAcc, double length_thresh = 4.5)
 {
 	Point3s vec21, vec23, vec13;
 
+    /*
 	vec21.x = teAtomDon->x - teAtomHyd->x;
 	vec21.y = teAtomDon->y - teAtomHyd->y;
 	vec21.z = teAtomDon->z - teAtomHyd->z;
@@ -2705,29 +2793,30 @@ bool checkhbond(Point3s* teAtomHyd, Point3s* teAtomDon, Point3s* teAtomAcc)
 	vec23.x = teAtomAcc->x - teAtomHyd->x;
 	vec23.y = teAtomAcc->y - teAtomHyd->y;
 	vec23.z = teAtomAcc->z - teAtomHyd->z;
+    */
 
 	vec13.x = teAtomDon->x - teAtomAcc->x;
 	vec13.y = teAtomDon->y - teAtomAcc->y;
 	vec13.z = teAtomDon->z - teAtomAcc->z;
 
-	double length21=sqrt(vec21.x*vec21.x+vec21.y*vec21.y+vec21.z*vec21.z+1e-8);
-	double length23=sqrt(vec23.x*vec23.x+vec23.y*vec23.y+vec23.z*vec23.z+1e-8);
+	//double length21=sqrt(vec21.x*vec21.x+vec21.y*vec21.y+vec21.z*vec21.z+1e-8);
+	//double length23=sqrt(vec23.x*vec23.x+vec23.y*vec23.y+vec23.z*vec23.z+1e-8);
 	double length13=sqrt(vec13.x*vec13.x+vec13.y*vec13.y+vec13.z*vec13.z+1e-8);
 
-	vec21.x /= length21; vec21.y /= length21; vec21.z /= length21;
-	vec23.x /= length23; vec23.y /= length23; vec23.z /= length23;
+	//vec21.x /= length21; vec21.y /= length21; vec21.z /= length21;
+	//vec23.x /= length23; vec23.y /= length23; vec23.z /= length23;
 	
-	double innerprot = vec21.x*vec23.x+vec21.y*vec23.y+vec21.z*vec23.z;
-	double dcosangle = innerprot;
-	if     (dcosangle >  1.) dcosangle =  1.;
-	else if(dcosangle < -1.) dcosangle = -1.;
+	//double innerprot = vec21.x*vec23.x+vec21.y*vec23.y+vec21.z*vec23.z;
+	//double dcosangle = innerprot;
+	//if     (dcosangle >  1.) dcosangle =  1.;
+	//else if(dcosangle < -1.) dcosangle = -1.;
 
-	double angle = acos(dcosangle)*DEGRAD;
+	//double angle = acos(dcosangle)*DEGRAD;
 
 	//cout<<angle << "-" << length13 << "-" << (length13 <= 4.5)<<endl;
 
 	//return ((angle >= 95) && (length13 <= 4.5));
-	return (length13 <= 4.5);
+	return (length13 <= length_thresh);
 }
 
 void gethbondpairsbp(FragmentStructure &superimposedstr, vector<vector<Point3s>> &gradient, int res1, int res2, vector<vector<int>> molConnect, vector<vector<bool>> intraatomConnect1, vector<vector<bool>> intraatomConnect2, const map<char, map<char, map<int, map<int, HydroBondParameters>>>> &hbondparam, list<Hbondobj> &hbondobj, list<Hbond2hydobj> &hbondbpobj, int bptype, const double &K)
@@ -2738,28 +2827,8 @@ void gethbondpairsbp(FragmentStructure &superimposedstr, vector<vector<Point3s>>
     char AccBase, DonBase;
 	Point3s vec12;
 	double energy;
+    double length_thresh;
     bool flag;
-
-    //map<string, vector<int>> HBondHydrogenAtoms = {
-        //{"A",{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1,1,0}},
-        //{"C",{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1,1}},
-        //{"G",{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1,1,1}},
-        //{"U",{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1}}
-    //};
-    
-    map<string, vector<int>> HBondHydrogenAtoms = {
-        {"A",{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0}},
-        {"C",{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0}},
-        {"G",{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0}},
-        {"U",{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0}}
-    };
-    
-    map<string, vector<int>> HBondAcceptorAtoms = {
-        {"A",{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0}},
-        {"C",{0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}},
-        {"G",{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0}},
-        {"U",{0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0}}
-    };
 
     //Acc idx, Hyd idx, Don idx, order
     static map<string, vector<vector<vector<int>>>> BpHbondInfo = {
@@ -2777,7 +2846,7 @@ void gethbondpairsbp(FragmentStructure &superimposedstr, vector<vector<Point3s>>
         {"UG",{{{17,31,20,0}, {17,32,20,0}}, {{17,29,15,1}}}},
         {"CC",{{{14,29,17,0}, {14,30,17,0}}, {{15,29,17,0},{15,30,17,0}}}},
         {"UC",{{{14,29,17,0}, {14,30,17,0}}, {{17,29,17,0},{17,30,17,0}}, {{15,29,15,1}}, {{14,29,15,1}}}},
-        {"UC",{{{14,29,17,1}, {14,30,17,1}}, {{17,29,17,1},{17,30,17,1}}, {{15,29,15,0}}, {{14,29,15,0}}}},
+        {"CU",{{{14,29,17,1}, {14,30,17,1}}, {{17,29,17,1},{17,30,17,1}}, {{15,29,15,0}}, {{14,29,15,0}}}},
         {"UU",{{{14,29,15,0}}, {{17,29,15,0}}}}
     };
     
@@ -2796,91 +2865,181 @@ void gethbondpairsbp(FragmentStructure &superimposedstr, vector<vector<Point3s>>
             if(hbondinfo[k][0][3] == 0){
                 AccBase = base1[0]; DonBase = base2[0];
 
-                flag = checkhbond2(&superimposedstr.residues[res2].atoms[hbondinfo[k][0][1]].coord, &superimposedstr.residues[res2].atoms[hbondinfo[k][1][1]].coord, &superimposedstr.residues[res2].atoms[hbondinfo[k][0][2]].coord, &superimposedstr.residues[res1].atoms[hbondinfo[k][0][0]].coord);
+                length_thresh = hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).adlength_mean + 4*hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).adlength_std;
+
+                //cout<<length_thresh<<endl;
+
+                flag = checkhbond2(&superimposedstr.residues[res2].atoms[hbondinfo[k][0][1]].coord, &superimposedstr.residues[res2].atoms[hbondinfo[k][1][1]].coord, &superimposedstr.residues[res2].atoms[hbondinfo[k][0][2]].coord, &superimposedstr.residues[res1].atoms[hbondinfo[k][0][0]].coord, length_thresh);
 								
 			    if(!flag && bptype==1) continue;
 
-                Hbond2hydobj hbondobjone = Hbond2hydobj::create(&superimposedstr.residues[res2].atoms[hbondinfo[k][0][1]].coord, &superimposedstr.residues[res2].atoms[hbondinfo[k][1][1]].coord, &superimposedstr.residues[res2].atoms[hbondinfo[k][0][2]].coord, &superimposedstr.residues[res1].atoms[hbondinfo[k][0][0]].coord, &gradient[res2][hbondinfo[k][0][1]], &gradient[res2][hbondinfo[k][1][1]], &gradient[res2][hbondinfo[k][0][2]], &gradient[res1][hbondinfo[k][0][0]], hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).adlength_mean, hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).ahlength_mean, hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).dhaangle_mean , K);
+                Hbond2hydobj hbondobjone = Hbond2hydobj::create(&superimposedstr.residues[res2].atoms[hbondinfo[k][0][1]].coord, &superimposedstr.residues[res2].atoms[hbondinfo[k][1][1]].coord, &superimposedstr.residues[res2].atoms[hbondinfo[k][0][2]].coord, &superimposedstr.residues[res1].atoms[hbondinfo[k][0][0]].coord, &gradient[res2][hbondinfo[k][0][1]], &gradient[res2][hbondinfo[k][1][1]], &gradient[res2][hbondinfo[k][0][2]], &gradient[res1][hbondinfo[k][0][0]], hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).adlength_mean, hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).ahlength_mean, hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).dhaangle_mean - hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).dhaangle_std , K);
                 hbondbpobj.push_back(hbondobjone);
             }else{
                 AccBase = base2[0]; DonBase = base1[0];
 
-                flag = checkhbond2(&superimposedstr.residues[res1].atoms[hbondinfo[k][0][1]].coord, &superimposedstr.residues[res1].atoms[hbondinfo[k][1][1]].coord, &superimposedstr.residues[res1].atoms[hbondinfo[k][0][2]].coord, &superimposedstr.residues[res2].atoms[hbondinfo[k][0][0]].coord);
+                length_thresh = hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).adlength_mean + 4*hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).adlength_std;
+
+                //cout<<length_thresh<<endl;
+
+                flag = checkhbond2(&superimposedstr.residues[res1].atoms[hbondinfo[k][0][1]].coord, &superimposedstr.residues[res1].atoms[hbondinfo[k][1][1]].coord, &superimposedstr.residues[res1].atoms[hbondinfo[k][0][2]].coord, &superimposedstr.residues[res2].atoms[hbondinfo[k][0][0]].coord, length_thresh);
 								
 			    if(!flag && bptype==1) continue;
 
-                Hbond2hydobj hbondobjone = Hbond2hydobj::create(&superimposedstr.residues[res1].atoms[hbondinfo[k][0][1]].coord, &superimposedstr.residues[res1].atoms[hbondinfo[k][1][1]].coord, &superimposedstr.residues[res1].atoms[hbondinfo[k][0][2]].coord, &superimposedstr.residues[res2].atoms[hbondinfo[k][0][0]].coord, &gradient[res1][hbondinfo[k][0][1]], &gradient[res1][hbondinfo[k][1][1]], &gradient[res1][hbondinfo[k][0][2]], &gradient[res2][hbondinfo[k][0][0]], hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).adlength_mean, hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).ahlength_mean, hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).dhaangle_mean, K);
+                Hbond2hydobj hbondobjone = Hbond2hydobj::create(&superimposedstr.residues[res1].atoms[hbondinfo[k][0][1]].coord, &superimposedstr.residues[res1].atoms[hbondinfo[k][1][1]].coord, &superimposedstr.residues[res1].atoms[hbondinfo[k][0][2]].coord, &superimposedstr.residues[res2].atoms[hbondinfo[k][0][0]].coord, &gradient[res1][hbondinfo[k][0][1]], &gradient[res1][hbondinfo[k][1][1]], &gradient[res1][hbondinfo[k][0][2]], &gradient[res2][hbondinfo[k][0][0]], hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).adlength_mean, hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).ahlength_mean, hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).dhaangle_mean - hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).dhaangle_std, K);
                 hbondbpobj.push_back(hbondobjone);
             }
         }else{
             if(hbondinfo[k][0][3] == 0){
                 AccBase = base1[0]; DonBase = base2[0];
 
-                flag = checkhbond(&superimposedstr.residues[res2].atoms[hbondinfo[k][0][1]].coord, &superimposedstr.residues[res2].atoms[hbondinfo[k][0][2]].coord, &superimposedstr.residues[res1].atoms[hbondinfo[k][0][0]].coord);
+                length_thresh = hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).adlength_mean + 4*hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).adlength_std;
+
+                //cout<<length_thresh<<endl;
+
+                flag = checkhbond(&superimposedstr.residues[res2].atoms[hbondinfo[k][0][1]].coord, &superimposedstr.residues[res2].atoms[hbondinfo[k][0][2]].coord, &superimposedstr.residues[res1].atoms[hbondinfo[k][0][0]].coord, length_thresh);
 				
 			    if(!flag && bptype==1) continue;
 
-                Hbondobj hbondobjone = Hbondobj::create(&superimposedstr.residues[res2].atoms[hbondinfo[k][0][1]].coord, &superimposedstr.residues[res2].atoms[hbondinfo[k][0][2]].coord, &superimposedstr.residues[res1].atoms[hbondinfo[k][0][0]].coord, &gradient[res2][hbondinfo[k][0][1]], &gradient[res2][hbondinfo[k][0][2]], &gradient[res1][hbondinfo[k][0][0]], hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).adlength_mean, hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).ahlength_mean, hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).dhaangle_mean, K);
+                Hbondobj hbondobjone = Hbondobj::create(&superimposedstr.residues[res2].atoms[hbondinfo[k][0][1]].coord, &superimposedstr.residues[res2].atoms[hbondinfo[k][0][2]].coord, &superimposedstr.residues[res1].atoms[hbondinfo[k][0][0]].coord, &gradient[res2][hbondinfo[k][0][1]], &gradient[res2][hbondinfo[k][0][2]], &gradient[res1][hbondinfo[k][0][0]], hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).adlength_mean, hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).ahlength_mean, hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).dhaangle_mean - hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).dhaangle_std, K);
                 hbondobj.push_back(hbondobjone);
             }else{
                 AccBase = base2[0]; DonBase = base1[0];
 
-                flag = checkhbond(&superimposedstr.residues[res1].atoms[hbondinfo[k][0][1]].coord, &superimposedstr.residues[res1].atoms[hbondinfo[k][0][2]].coord, &superimposedstr.residues[res2].atoms[hbondinfo[k][0][0]].coord);
+                length_thresh = hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).adlength_mean + 4*hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).adlength_std;
+
+                //cout<<length_thresh<<endl;
+
+                flag = checkhbond(&superimposedstr.residues[res1].atoms[hbondinfo[k][0][1]].coord, &superimposedstr.residues[res1].atoms[hbondinfo[k][0][2]].coord, &superimposedstr.residues[res2].atoms[hbondinfo[k][0][0]].coord, length_thresh);
 				
 			    if(!flag && bptype==1) continue;
 
-                Hbondobj hbondobjone = Hbondobj::create(&superimposedstr.residues[res1].atoms[hbondinfo[k][0][1]].coord, &superimposedstr.residues[res1].atoms[hbondinfo[k][0][2]].coord, &superimposedstr.residues[res2].atoms[hbondinfo[k][0][0]].coord, &gradient[res1][hbondinfo[k][0][1]], &gradient[res1][hbondinfo[k][0][2]], &gradient[res2][hbondinfo[k][0][0]], hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).adlength_mean, hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).ahlength_mean, hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).dhaangle_mean, K);
+                Hbondobj hbondobjone = Hbondobj::create(&superimposedstr.residues[res1].atoms[hbondinfo[k][0][1]].coord, &superimposedstr.residues[res1].atoms[hbondinfo[k][0][2]].coord, &superimposedstr.residues[res2].atoms[hbondinfo[k][0][0]].coord, &gradient[res1][hbondinfo[k][0][1]], &gradient[res1][hbondinfo[k][0][2]], &gradient[res2][hbondinfo[k][0][0]], hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).adlength_mean, hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).ahlength_mean, hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).dhaangle_mean - hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).dhaangle_std, K);
                 hbondobj.push_back(hbondobjone);
             }
         }
     }
-
-    /*
-    for(k=0;k<atomnum1;k++){
-        for(l=0;l<atomnum2;l++){
-            if((HBondHydrogenAtoms[base1][k] == 1) && (HBondAcceptorAtoms[base2][l] == 1) && (molConnect[k][l] == 4)){
-                for(m=0;m<atomnum1;m++){
-                    if(intraatomConnect1[k][m] && (k < 12 || m < 12)){
-                        const Point3s &ptH = superimposedstr.residues[res1].atoms[k].coord;
-                        const Point3s &ptAcc = superimposedstr.residues[res2].atoms[l].coord;
-                        const Point3s &ptDon = superimposedstr.residues[res1].atoms[m].coord;
-
-                        energy=calcenergyhbond(ptH, ptDon, ptAcc);
-
-                        if(energy < HBONDThreshold){
-                            Hbondobj hbondobjone = Hbondobj::create(&superimposedstr.residues[res1].atoms[k].coord, &superimposedstr.residues[res1].atoms[m].coord, &superimposedstr.residues[res2].atoms[l].coord, &gradient[res1][k], &gradient[res1][m], &gradient[res2][l], K);
-			                hbondobj.push_back(hbondobjone);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    for(k=0;k<atomnum2;k++){
-        for(l=0;l<atomnum1;l++){
-            if((HBondHydrogenAtoms[base2][k] == 1) && (HBondAcceptorAtoms[base1][l] == 1) && (molConnect[l][k] == 4)){
-                for(m=0;m<atomnum2;m++){
-                    if(intraatomConnect2[k][m] && (k < 12 || m < 12)){
-                        const Point3s &ptH = superimposedstr.residues[res2].atoms[k].coord;
-                        const Point3s &ptAcc = superimposedstr.residues[res1].atoms[l].coord;
-                        const Point3s &ptDon = superimposedstr.residues[res2].atoms[m].coord;
-
-                        energy=calcenergyhbond(ptH, ptDon, ptAcc);
-
-                        if(energy < HBONDThreshold){
-                            Hbondobj hbondobjone = Hbondobj::create(&superimposedstr.residues[res2].atoms[k].coord, &superimposedstr.residues[res2].atoms[m].coord, &superimposedstr.residues[res1].atoms[l].coord, &gradient[res2][k], &gradient[res2][m], &gradient[res1][l], K);
-			                hbondobj.push_back(hbondobjone);
-                        }
-                    }
-                }
-            }
-        }
-    }
-    */
 }
 
-void getmolConnect(FragmentStructure &superimposedstr, vector<vector<Point3s>> &gradient, const vector<vector<pair<int, double>>> &stackmap, const map<string, map<int, vector<double>>> &atomfeatures, const map<string, vector<double>> &clashparam, const map<char, map<char, map<int, map<int, HydroBondParameters>>>> &hbondparam,
+void gethbondpairsbb(FragmentStructure &superimposedstr, vector<vector<Point3s>> &gradient, int res1, int res2, const map<char, map<char, map<int, map<int, BBHydroBondParameters>>>> &hbondparam, list<Hbondobj> &hbondobj, const double &K1, const double &K2)
+{
+	int k, l, m;
+	int atomnum1, atomnum2;
+	string base1, base2;
+    char AccBase, DonBase;
+	Point3s vec12;
+	double energy;
+    double length_thresh;
+    bool flag;
+    vector<vector<vector<int>>> hbondinfo;
+    
+    static map<string, vector<vector<vector<int>>>> BBHbondInfo = {
+        {"AA",{{{6,27,10,0}}, {{18,27,10,0}}, {{14,27,10,0}}, {{20,27,10,0}}}}, 
+        {"AC",{{{6,25,10,0}}, {{18,25,10,0}}, {{14,25,10,0}}, {{20,25,10,0}}}}, 
+        {"CA",{{{6,27,10,0}}, {{14,27,10,0}}, {{15,27,10,0}}}}, 
+        {"AG",{{{6,28,10,0}}, {{18,28,10,0}}, {{14,28,10,0}}, {{20,28,10,0}}}},
+        {"GA",{{{6,27,10,0}}, {{17,27,10,0}}, {{21,27,10,0}}, {{14,27,10,0}}}}, 
+        {"AU",{{{6,25,10,0}}, {{18,25,10,0}}, {{14,25,10,0}}, {{20,25,10,0}}}}, 
+        {"UA",{{{6,27,10,0}}, {{17,27,10,0}}, {{14,27,10,0}}}}, 
+        {"GG",{{{6,28,10,0}}, {{17,28,10,0}}, {{21,28,10,0}}, {{14,28,10,0}}}},
+        {"GC",{{{6,25,10,0}}, {{17,25,10,0}}, {{21,25,10,0}}, {{14,25,10,0}}}}, 
+        {"CG",{{{6,28,10,0}}, {{14,28,10,0}}, {{15,28,10,0}}}}, 
+        {"GU",{{{6,25,10,0}}, {{17,25,10,0}}, {{21,25,10,0}}, {{14,25,10,0}}}}, 
+        {"UG",{{{6,28,10,0}}, {{17,28,10,0}}, {{14,28,10,0}}}},
+        {"CC",{{{6,25,10,0}}, {{14,25,10,0}}, {{15,25,10,0}}}}, 
+        {"UC",{{{6,25,10,0}}, {{17,25,10,0}}, {{14,25,10,0}}}}, 
+        {"CU",{{{6,25,10,0}}, {{14,25,10,0}}, {{15,25,10,0}}}}, 
+        {"UU",{{{6,25,10,0}}, {{17,25,10,0}}, {{14,25,10,0}}}}
+    };
+    
+
+    base1 = superimposedstr.residues[res1].restype;
+	base2 = superimposedstr.residues[res2].restype;
+	atomnum1 = superimposedstr.residues[res1].atoms.size();
+	atomnum2 = superimposedstr.residues[res2].atoms.size();
+
+    hbondinfo = BBHbondInfo[base1+base2];
+
+    if(res1 != res2){
+        k=0;
+        AccBase = base1[0]; DonBase = base2[0];
+
+        length_thresh = hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).adlength_mean + 4*hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).adlength_std;
+
+        //cout<<hbondinfo[k][0][0] << "-" << hbondinfo[k][0][1] << "-" << hbondinfo[k][0][2]<<endl;
+        //cout<<hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).adlength_mean << "-" << length_thresh<<endl;
+
+        flag = checkhbond(&superimposedstr.residues[res2].atoms[hbondinfo[k][0][1]].coord, &superimposedstr.residues[res2].atoms[hbondinfo[k][0][2]].coord, &superimposedstr.residues[res1].atoms[hbondinfo[k][0][0]].coord, length_thresh);
+
+        //cout<<hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).adlength_mean << "-" << hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).ahlength_mean << "-" << hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).dhaangle_mean - hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).dhaangle_std<<endl;
+        if(flag){
+            Hbondobj hbondobjone = Hbondobj::create(&superimposedstr.residues[res2].atoms[hbondinfo[k][0][1]].coord, &superimposedstr.residues[res2].atoms[hbondinfo[k][0][2]].coord, &superimposedstr.residues[res1].atoms[hbondinfo[k][0][0]].coord, &gradient[res2][hbondinfo[k][0][1]], &gradient[res2][hbondinfo[k][0][2]], &gradient[res1][hbondinfo[k][0][0]], hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).adlength_mean, hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).ahlength_mean, hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).dhaangle_mean - hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).dhaangle_std, K1);
+            hbondobj.push_back(hbondobjone);
+        }
+    }
+
+    for(k=1;k<hbondinfo.size();k++)
+    {  
+        AccBase = base1[0]; DonBase = base2[0];
+
+        length_thresh = hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).adlength_mean + 4*hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).adlength_std;
+
+        //cout<<hbondinfo[k][0][0] << "-" << hbondinfo[k][0][1] << "-" << hbondinfo[k][0][2]<<endl;
+        //cout<<hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).adlength_mean << "-" << length_thresh<<endl;
+
+        flag = checkhbond(&superimposedstr.residues[res2].atoms[hbondinfo[k][0][1]].coord, &superimposedstr.residues[res2].atoms[hbondinfo[k][0][2]].coord, &superimposedstr.residues[res1].atoms[hbondinfo[k][0][0]].coord, length_thresh);
+        
+        if(!flag) continue;
+
+        //cout<<hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).adlength_mean << "-" << hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).ahlength_mean << "-" << hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).dhaangle_mean - hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).dhaangle_std<<endl;
+
+        Hbondobj hbondobjone = Hbondobj::create(&superimposedstr.residues[res2].atoms[hbondinfo[k][0][1]].coord, &superimposedstr.residues[res2].atoms[hbondinfo[k][0][2]].coord, &superimposedstr.residues[res1].atoms[hbondinfo[k][0][0]].coord, &gradient[res2][hbondinfo[k][0][1]], &gradient[res2][hbondinfo[k][0][2]], &gradient[res1][hbondinfo[k][0][0]], hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).adlength_mean, hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).ahlength_mean, hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).dhaangle_mean - hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).dhaangle_std, K2);
+        hbondobj.push_back(hbondobjone);
+    }
+    
+    hbondinfo = BBHbondInfo[base2+base1];
+
+    if(res1 != res2){
+        k=0;
+        AccBase = base2[0]; DonBase = base1[0];
+        length_thresh = hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).adlength_mean+ 4*hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).adlength_std;
+
+        //cout<<hbondinfo[k][0][0] << "-" << hbondinfo[k][0][1] << "-" << hbondinfo[k][0][2]<<endl;
+        //cout<<hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).adlength_mean << "-" << length_thresh<<endl;
+
+        flag = checkhbond(&superimposedstr.residues[res1].atoms[hbondinfo[k][0][1]].coord, &superimposedstr.residues[res1].atoms[hbondinfo[k][0][2]].coord, &superimposedstr.residues[res2].atoms[hbondinfo[k][0][0]].coord);
+
+        //cout<<hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).adlength_mean << "-" << hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).ahlength_mean << "-" << hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).dhaangle_mean - hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).dhaangle_std<<endl;
+
+        if(flag){
+            Hbondobj hbondobjone = Hbondobj::create(&superimposedstr.residues[res1].atoms[hbondinfo[k][0][1]].coord, &superimposedstr.residues[res1].atoms[hbondinfo[k][0][2]].coord, &superimposedstr.residues[res2].atoms[hbondinfo[k][0][0]].coord, &gradient[res1][hbondinfo[k][0][1]], &gradient[res1][hbondinfo[k][0][2]], &gradient[res2][hbondinfo[k][0][0]], hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).adlength_mean, hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).ahlength_mean, hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).dhaangle_mean - hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).dhaangle_std, K1);
+            hbondobj.push_back(hbondobjone);
+        }
+    }
+
+    for(k=1;k<hbondinfo.size();k++)
+    {
+        AccBase = base2[0]; DonBase = base1[0];
+
+        length_thresh = hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).adlength_mean+ 4*hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).adlength_std;
+
+        //cout<<hbondinfo[k][0][0] << "-" << hbondinfo[k][0][1] << "-" << hbondinfo[k][0][2]<<endl;
+        //cout<<hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).adlength_mean << "-" << length_thresh<<endl;
+
+        flag = checkhbond(&superimposedstr.residues[res1].atoms[hbondinfo[k][0][1]].coord, &superimposedstr.residues[res1].atoms[hbondinfo[k][0][2]].coord, &superimposedstr.residues[res2].atoms[hbondinfo[k][0][0]].coord);
+        
+        if(!flag) continue;
+
+        //cout<<hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).adlength_mean << "-" << hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).ahlength_mean << "-" << hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).dhaangle_mean - hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).dhaangle_std<<endl;
+
+        Hbondobj hbondobjone = Hbondobj::create(&superimposedstr.residues[res1].atoms[hbondinfo[k][0][1]].coord, &superimposedstr.residues[res1].atoms[hbondinfo[k][0][2]].coord, &superimposedstr.residues[res2].atoms[hbondinfo[k][0][0]].coord, &gradient[res1][hbondinfo[k][0][1]], &gradient[res1][hbondinfo[k][0][2]], &gradient[res2][hbondinfo[k][0][0]], hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).adlength_mean, hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).ahlength_mean, hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).dhaangle_mean - hbondparam.at(AccBase).at(DonBase).at(hbondinfo[k][0][0]).at(hbondinfo[k][0][2]).dhaangle_std, K2);
+        hbondobj.push_back(hbondobjone);
+    }
+
+    //exit(1);
+}
+
+void getmolConnect(FragmentStructure &superimposedstr, vector<vector<Point3s>> &gradient, const vector<vector<pair<int, double>>> &stackmap, const map<string, map<int, vector<double>>> &atomfeatures, const map<string, vector<double>> &clashparam, const map<char, map<char, map<int, map<int, HydroBondParameters>>>> &hbondparam, const map<char, map<char, map<int, map<int, BBHydroBondParameters>>>> &bbhbondparam,
     const map<string, vector<vector<int>>> &molConnectone, const map<string, vector<vector<int>>> &molConnecttwo, const map<string, vector<vector<int>>> &molConnectthree, 
     const map<string, vector<vector<int>>> &molAdjConnectone, const map<string, vector<vector<int>>> &molAdjConnecttwo, const map<string, vector<vector<int>>> &molAdjConnectthree, 
     const map<string, vector<vector<int>>> &molAdjConnectoneidx, const map<string, vector<vector<int>>> &molAdjConnecttwoidx, const map<string, vector<vector<int>>> &molAdjConnectthreeidx, const vector<vector<int>> &bindmap, const vector<vector<double>> &cbpmap, const vector<vector<double>> &noncbpmap, vector<bool> &moveresidues,
@@ -2964,6 +3123,11 @@ void getmolConnect(FragmentStructure &superimposedstr, vector<vector<Point3s>> &
                     //}
                 }
             }
+
+            if(enecoeff["BBHBond"] > 0 || enecoeff["BBBaseHBond"] > 0){
+                gethbondpairsbb(superimposedstr, gradient, i, j, bbhbondparam, hbondobj, enecoeff["BBHBond"], enecoeff["BBBaseHBond"]);
+            }
+
             if(enecoeff["Clash"] > 0){
                 getclashpairs(superimposedstr, gradient, atomfeatures, i, j, molConnect, enecoeff["Clash"], clashobj);
                 //getclashpairs(superimposedstr, gradient, clashparam, i, j, molConnect, enecoeff["Clash"], clashobj);
@@ -2972,7 +3136,97 @@ void getmolConnect(FragmentStructure &superimposedstr, vector<vector<Point3s>> &
     }
 }
 
-void getmolConnectbp(FragmentStructure &superimposedstr, vector<vector<Point3s>> &gradient, int bp_len, const vector<vector<int>> &stackmap, const map<string, map<int, vector<double>>> &atomfeatures, const map<string, vector<double>> &clashparam, const map<char, map<char, map<int, map<int, HydroBondParameters>>>> &hbondparam,
+void remolConnect(FragmentStructure &superimposedstr, vector<vector<Point3s>> &gradient, const vector<vector<pair<int, double>>> &stackmap, const map<string, map<string, vector<vector<vector<double>>>>> &stackdistmap, 
+    const map<string, map<string, vector<ModelUnit>>> &ideal_rna, const map<string, map<int, vector<double>>> &atomfeatures, const map<string, vector<double>> &clashparam, 
+    const map<char, map<char, map<int, map<int, HydroBondParameters>>>> &hbondparam, const map<char, map<char, map<int, map<int, BBHydroBondParameters>>>> &bbhbondparam,
+    const map<string, vector<vector<int>>> &molConnectone, const map<string, vector<vector<int>>> &molConnecttwo, const map<string, vector<vector<int>>> &molConnectthree, 
+    const map<string, vector<vector<int>>> &molAdjConnectone, const map<string, vector<vector<int>>> &molAdjConnecttwo, const map<string, vector<vector<int>>> &molAdjConnectthree, 
+    const vector<vector<int>> &bindmap, const vector<vector<double>> &cbpmap, const vector<vector<double>> &noncbpmap, 
+    vector<bool> &moveresidues, list<Hbondobj> &hbondobj, list<Hbond2hydobj> &hbondbpobj, list<Stackingobj> &stackobj, map<string, double> enecoeff)
+{
+    hbondobj.clear();
+    hbondbpobj.clear();
+    stackobj.clear();
+
+    int i, j, k;
+    string base1, base2, base;
+    int atomnum1, atomnum2, atomnum;
+    vector<string> nts={"A","C","G","U"};
+    map<string, int> atomnumnts={{"A", 33}, {"C", 31}, {"G", 34}, {"U", 30}};
+    vector<vector<int>> molConnect;
+    map<string, vector<vector<bool>>> intraatomconnect;
+    map<string, string> basestackname = {{"A_A", "A_A"}, {"A_C", "A_C"}, {"A_G", "A_G"}, {"A_U", "A_U"}, {"C_A", "A_C"}, {"C_C", "C_C"}, {"C_G", "C_G"}, {"C_U", "C_U"}, {"G_A", "A_G"}, {"G_C", "C_G"}, {"G_G", "G_G"}, {"G_U", "G_U"}, {"U_A", "A_U"}, {"U_C", "C_U"}, {"U_G", "G_U"}, {"U_U", "U_U"}};
+    int minfragidx; 
+    double minrmsd;
+    int baseorder;
+
+    for(i=0;i<nts.size();i++){
+        base=nts[i];
+        atomnum = atomnumnts[base];
+        intraatomconnect[base].resize(atomnum, vector<bool>(atomnum, false));
+        for(k=0;k<molConnectone.at(base).size();k++){
+            intraatomconnect[base][molConnectone.at(base)[k][0]][molConnectone.at(base)[k][1]] = true;
+            intraatomconnect[base][molConnectone.at(base)[k][1]][molConnectone.at(base)[k][0]] = true;
+        }
+    }
+
+    for(i=0;i<superimposedstr.residues.size();i++){
+        base1 = superimposedstr.residues[i].restype;
+        atomnum1 = superimposedstr.residues[i].atoms.size();
+        for(j=i+1;j<superimposedstr.residues.size();j++){
+            base2 = superimposedstr.residues[j].restype;
+            atomnum2 = superimposedstr.residues[j].atoms.size();
+
+            if(!moveresidues[i] && !moveresidues[j]) continue;
+
+            molConnect.clear();
+            molConnect.resize(atomnum1, vector<int>(atomnum2, 4));
+
+            if(bindmap[i][j] == 1){
+                for(k=0;k<molAdjConnectthree.at(base1).size();k++){
+                    molConnect[molAdjConnectthree.at(base1)[k][0]][molAdjConnectthree.at(base1)[k][3]] = 3;
+				}
+                for(k=0;k<molAdjConnecttwo.at(base1).size();k++){
+					molConnect[molAdjConnecttwo.at(base1)[k][0]][molAdjConnecttwo.at(base1)[k][2]] = 2;
+				}
+                for(k=0;k<molAdjConnectone.at(base1).size();k++){
+					molConnect[molAdjConnectone.at(base1)[k][0]][molAdjConnectone.at(base1)[k][1]] = 1;
+				}
+            }
+
+            if(enecoeff["HBond"] > 0){
+                if(cbpmap[i][j] > 0){
+                    gethbondpairsbp(superimposedstr, gradient, i, j, molConnect, intraatomconnect[base1], intraatomconnect[base2], hbondparam, hbondobj, hbondbpobj, 0, cbpmap[i][j]*enecoeff["HBond"]);
+                }
+
+                if(noncbpmap[i][j] > 0){
+                    gethbondpairsbp(superimposedstr, gradient, i, j, molConnect, intraatomconnect[base1], intraatomconnect[base2], hbondparam, hbondobj, hbondbpobj, 1, noncbpmap[i][j]*enecoeff["HBond"]);
+                }
+            }
+
+            if(enecoeff["BBHBond"] > 0){
+                gethbondpairsbb(superimposedstr, gradient, i, j, bbhbondparam, hbondobj, enecoeff["BBHBond"], enecoeff["BBBaseHBond"]);
+            }
+
+            if(enecoeff["Stack"] > 0){
+                if(stackmap[i][j].first > 0){
+                    if(stackmap[i][j].first == 2){
+                        selectstackfrag(superimposedstr, gradient, i, j, ideal_rna.at("stacking_adj").at(base1+"_"+base2), stackdistmap.at("stacking_adj").at(base1+"_"+base2), 1, minfragidx, minrmsd, baseorder, stackmap[i][j].second*enecoeff["Stack"], stackobj);
+                    }else{
+                        if(base1+"_"+base2 == basestackname[base1+"_"+base2]){
+                            selectstackfrag(superimposedstr, gradient, i, j, ideal_rna.at("stacking_nonadj").at(basestackname[base1+"_"+base2]), stackdistmap.at("stacking_nonadj").at(basestackname[base1+"_"+base2]), 0, minfragidx, minrmsd, baseorder, stackmap[i][j].second*enecoeff["Stack"], stackobj);
+                        }else{
+                            selectstackfrag(superimposedstr, gradient, j, i, ideal_rna.at("stacking_nonadj").at(basestackname[base1+"_"+base2]), stackdistmap.at("stacking_nonadj").at(basestackname[base1+"_"+base2]), 0, minfragidx, minrmsd, baseorder, stackmap[i][j].second*enecoeff["Stack"], stackobj);
+                        }
+                        
+                    }
+                }
+            }
+        }
+    }
+}
+
+void getmolConnectbp(FragmentStructure &superimposedstr, vector<vector<Point3s>> &gradient, int bp_len, const vector<vector<int>> &stackmap, const map<string, map<int, vector<double>>> &atomfeatures, const map<string, vector<double>> &clashparam, const map<char, map<char, map<int, map<int, HydroBondParameters>>>> &hbondparam, const map<char, map<char, map<int, map<int, BBHydroBondParameters>>>> &bbhbondparam,
     const map<string, vector<vector<int>>> &molConnectone, const map<string, vector<vector<int>>> &molConnecttwo, const map<string, vector<vector<int>>> &molConnectthree, 
     const map<string, vector<vector<int>>> &molAdjConnectone, const map<string, vector<vector<int>>> &molAdjConnecttwo, const map<string, vector<vector<int>>> &molAdjConnectthree, 
     const map<string, vector<vector<int>>> &molAdjConnectoneidx, const map<string, vector<vector<int>>> &molAdjConnecttwoidx, const map<string, vector<vector<int>>> &molAdjConnectthreeidx, vector<vector<int>> &bindmap, const vector<vector<double>> &cbpmap, const vector<vector<double>> &noncbpmap, vector<bool> &moveresidues,
@@ -3216,269 +3470,9 @@ void updatelbfgsfeatures(const FragmentStructure &superimposedstr, const Fragmen
     }
 }
 
-/*
-void fragmentoptimizationbp(
-    FragmentStructure &superimposedstr, const FragmentStructure &inputtedstr, const vector<vector<bool>> &inputtedstrflag, const vector<FragmentStructure> &templatestrall, const vector<vector<vector<bool>>> &templatestrallflag, const map<string, map<string, vector<ModelUnit>>> &ideal_rna, int bplen, 
-    double &startene, double &endene, const ExtParams &extparameters, vector<vector<int>> &bindmap, vector<vector<int>> &stackmap, const map<string, map<string, vector<vector<vector<double>>>>> &stackdistmap, vector<bool> &moveresidues, const int &epochs)
-    //map<string, vector<vector<double>>> &blengthparam, map<string, vector<vector<double>>> &adjblengthparam,
-    //map<string, vector<vector<double>>> &ntangleparam, map<string, vector<vector<int>>> &ntangleparamidx, map<string, vector<vector<double>>> &adjangleparam, map<string, vector<vector<int>>> &adjangleparamidx)
-{
-    //map<string, double> enecoeff={{"length", 400}, {"angle", 4}, {"dihedral", 0}, {"init", 0.5}, {"improper", 0}, {"electros", 0}, {"LJ", 0}, {"HBond", 0}, {"BP", 1}};
-    //map<string, double> enecoeff={{"length", 5000}, {"angle", 8}, {"hydtor", 0}, {"dihedral", 0}, {"init", 10}, {"improper", 0}, {"electros", 1}, {"LJ", 1}, {"HBond", 1}, {"BP", 1}};
-    //map<string, double> enecoeff={{"length", 3000}, {"angle", 8}, {"hydtor", 0}, {"dihedral", 0}, {"init", 0}, {"initdist", 1}, {"templatedist", 1}, {"improper", 0}, {"electros", 0}, {"LJ", 0}, {"HBond", 1}, {"BP", 1}, {"Stack", 5}, {"Clash", 20}};
-    //map<string, double> enecoeff={{"length", 500}, {"angle",160}, {"hydtor", 0}, {"dihedral", 0}, {"init", 0}, {"initdist", 0.1}, {"templatedist", 0.1}, {"improper", 0}, {"electros", 1}, {"LJ", 1}, {"HBond", 1}, {"BP", 1}, {"Stack", 2}, {"Clash", 4}};
-    map<string, double> enecoeff={{"length", 400}, {"angle",140}, {"hydtor", 0}, {"dihedral", 0}, {"init", 0.05}, {"initdist", 0.0}, {"templatedist", 0.0}, {"improper", 0}, {"electros", 1}, {"LJ", 1}, {"HBond", 1}, {"BP", 3.0}, {"Stack", 3}, {"Clash", 5}};
-
-    //FragmentStructure superimposedstr;
-    int istart1, iend1, istart2, iend2;
-
-    istart1 = 0;
-    iend1 = bplen;
-    istart2 = bplen;
-    iend2 = bplen*2;
-
-    //optimization
-    vector<vector<Point3s>> gradptv;
-    prepgrad(superimposedstr, gradptv);
-
-    FragmentStructure superimposedstr_prev;
-    vector<vector<Point3s>> gradptv_prev;
-    deque<vector<vector<Point3s>>> s_list, y_list;
-    deque<double> rho_list;
-    vector<vector<Point3s>> z;
-    prepgrad(superimposedstr, z);
-    int m=15;
-
-    list<InitPosobj> binitobj;
-    list<InitPairobj> binitpairobj;
-    list<InitPairobj> btemplatepairobj;
-    list<BondLengthobj> blengthobj;
-	list<BondAngleobj> bangleobj;
-    list<BondDihedralobj> dihedralobj;
-    list<BasePairobj> bpobj;
-    list<BPdistobj> bpdistobj;
-    list<TElectrobj> telecteobj;
-	list<LennardsJobj> ljobj;
-	list<Hbondobj> hbondobj;
-    list<Hbond2hydobj> hbondbpobj;
-    list<Stackingobj> stackobj;
-    list<StackGeoobjMC> stackgeoobj;
-    list<Clashobj> clashobj;
-    list<SingleNtTemplateobj> nttempobj;
-
-    vector<vector<int>> indices;
-    vector<vector<int>> orders;
-
-    if(enecoeff["init"] > 0) setinitobj(superimposedstr, inputtedstr, inputtedstrflag, gradptv, binitobj, enecoeff["init"], moveresidues);
-    if(enecoeff["initdist"] > 0) setinitpairobj(superimposedstr, inputtedstr, inputtedstrflag, gradptv, binitpairobj, enecoeff["initdist"], moveresidues);
-    if(enecoeff["templatedist"] > 0) settemplatepairobj(superimposedstr, templatestrall, templatestrallflag, gradptv, btemplatepairobj, enecoeff["templatedist"]/templatestrall.size(), moveresidues);
-
-    if(enecoeff["length"] > 0){
-        setlengthobj(superimposedstr, gradptv, istart1, iend1, bindmap, extparameters.blengthparam, extparameters.blengthstdval, extparameters.adjblengthparam, extparameters.adjblengthstdval, extparameters.hydparam, extparameters.hydparamidx, extparameters.hydaddlength, extparameters.hydaddlengthidx, enecoeff["length"], blengthobj, moveresidues);
-        setlengthobj(superimposedstr, gradptv, istart2, iend2, bindmap, extparameters.blengthparam, extparameters.blengthstdval, extparameters.adjblengthparam, extparameters.adjblengthstdval, extparameters.hydparam, extparameters.hydparamidx, extparameters.hydaddlength, extparameters.hydaddlengthidx, enecoeff["length"], blengthobj, moveresidues);
-    }
-    if(enecoeff["angle"] > 0){
-        setangleobj(superimposedstr, gradptv, istart1, iend1, bindmap, extparameters.ntangleparam, extparameters.ntangleparamidx, extparameters.adjangleparam, extparameters.adjangleparamidx, extparameters.hydaddangle, extparameters.hydaddangleidx, enecoeff["angle"], bangleobj, moveresidues);
-        setangleobj(superimposedstr, gradptv, istart2, iend2, bindmap, extparameters.ntangleparam, extparameters.ntangleparamidx, extparameters.adjangleparam, extparameters.adjangleparamidx, extparameters.hydaddangle, extparameters.hydaddangleidx, enecoeff["angle"], bangleobj, moveresidues);
-    }
-
-    if(enecoeff["hydtor"] > 0){
-        setdihedralobj(superimposedstr, gradptv, istart1, iend1, extparameters.hydtorsionparam, extparameters.btorsionparam, enecoeff["hydtor"], dihedralobj, moveresidues);
-        setdihedralobj(superimposedstr, gradptv, istart2, iend2, extparameters.hydtorsionparam, extparameters.btorsionparam, enecoeff["hydtor"], dihedralobj, moveresidues);
-    }
-
-    if(enecoeff["BP"] > 0) setbasepairobj(superimposedstr, gradptv, bindmap, enecoeff["BP"], bpobj);
-    if(enecoeff["Stack"] > 0){
-        setstackingobj(superimposedstr, gradptv, ideal_rna, stackmap, stackdistmap, enecoeff["Stack"], stackobj);
-        //setstackingobj(superimposedstr, gradptv, ideal_rna, stackmap, stackdistmap, indices, orders, enecoeff["Stack"], stackobj);
-    }
-
-    //if(enecoeff["Stack"] > 0) setstackingobj(superimposedstr, gradptv, ideal_rna, stackmap, stackdistmap, enecoeff["Stack"], stackobj);
-
-    if(enecoeff["electros"] > 0 || enecoeff["LJ"] > 0 || enecoeff["HBond"] > 0 || enecoeff["Clash"] > 0) getmolConnectbp(superimposedstr, gradptv, bplen, stackmap, extparameters.atomfeatures, extparameters.clashparam, extparameters.bphbond, 
-                                                                                              extparameters.molConnectone, extparameters.molConnecttwo, extparameters.molConnectthree, 
-                                                                                              extparameters.molAdjConnectone, extparameters.molAdjConnecttwo, extparameters.molAdjConnectthree, 
-                                                                                              extparameters.molAdjConnectoneidx, extparameters.molAdjConnecttwoidx, extparameters.molAdjConnectthreeidx, bindmap, moveresidues,
-                                                                                              telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, enecoeff);
-
-    int estop_counter, stop_count;
-    double averagenorm, energy, minenergy;
-    //int epochs=10000;
-    stop_count = 50;
-    minenergy = 100000000;
-    estop_counter=0;  
-
-    startene = getcovalentenergystem(blengthobj, bangleobj, dihedralobj, bpobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
-
-    for (int epoch = 0; epoch < epochs; ++epoch){
-        initgrad(superimposedstr, gradptv);
-        getgradient(blengthobj, bangleobj, dihedralobj, bpobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
-        //averagenorm = calcaveragenorm(gradptv);
-
-        if(epoch > 1){
-            updatelbfgsfeatures(superimposedstr, superimposedstr_prev, gradptv, gradptv_prev, s_list, y_list, rho_list, moveresidues, m); //lbfgs
-            lbfgsupdate(gradptv, s_list, y_list, rho_list, moveresidues, z); //lbfgs
-        }
-
-        superimposedstr_prev=superimposedstr; //lbfgs
-        gradptv_prev=gradptv; //lbfgs
-
-        //energy = goldenelectionsearch(superimposedstr, gradptv, blengthobj, bangleobj, bpobj, binitobj, telecteobj, ljobj, hbondobj, moveresidues);
-        if(epoch > 1){
-            averagenorm = calcaveragenorm(z);
-            //energy = goldenelectionsearch(superimposedstr, z, blengthobj, bangleobj, bpobj, binitobj, telecteobj, ljobj, hbondobj, moveresidues); //lbfgs
-            
-            double alpha0 = 1.0;
-            double rho = 0.5;
-            double beta = 0.1;
-            energy = linesearch(superimposedstr, z, blengthobj, bangleobj, dihedralobj, bpobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj, moveresidues, alpha0, rho, beta);
-        }
-        else{
-            averagenorm = calcaveragenorm(gradptv);
-            energy = goldenelectionsearch(superimposedstr, gradptv, blengthobj, bangleobj, dihedralobj, bpobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj, moveresidues);
-        }
-
-        //cout<< "epoch "<<epoch+1 << ": "<< energy<<endl;
-
-        if(energy < minenergy){
-            minenergy = energy;
-            estop_counter = 0;
-        }else{
-            estop_counter += 1;
-        }
-
-        if(stop_count == estop_counter) break;
-    }
-
-    endene = getcovalentenergystem(blengthobj, bangleobj, dihedralobj, bpobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
-}
-
-void fragmentoptimizationloop(FragmentStructure &superimposedstr, const FragmentStructure &inputtedstr, const vector<vector<bool>> &inputtedstrflag, const vector<FragmentStructure> &templatestrall, const vector<vector<vector<bool>>> &templatestrallflag, const map<string, map<string, vector<ModelUnit>>> &ideal_rna, int looplen, 
-    double &startene, double &endene, const ExtParams &extparameters, vector<vector<int>> &bindmap, vector<vector<int>> &stackmap, const map<string, map<string, vector<vector<vector<double>>>>> &stackdistmap, vector<bool> &moveresidues, const int &epochs)
-    //, map<string, vector<vector<double>>> &blengthparam, map<string, vector<vector<double>>> &adjblengthparam,
-    //map<string, vector<vector<double>>> &ntangleparam, map<string, vector<vector<int>>> &ntangleparamidx, map<string, vector<vector<double>>> &adjangleparam, map<string, vector<vector<int>>> &adjangleparamidx)
-{
-    //map<string, double> enecoeff={{"length", 400}, {"angle", 4}, {"dihedral", 0}, {"init", 0.5}, {"improper", 0}, {"electros", 0}, {"LJ", 0}, {"HBond", 0}, {"BP", 0}};
-    //map<string, double> enecoeff={{"length", 500}, {"angle", 4}, {"dihedral", 0}, {"init", 100}, {"improper", 0}, {"electros", 1}, {"LJ", 1}, {"HBond", 1}, {"BP", 1}};
-    //map<string, double> enecoeff={{"length", 5000}, {"angle", 8}, {"hydtor", 0}, {"dihedral", 0}, {"init", 10}, {"improper", 0}, {"electros", 1}, {"LJ", 1}, {"HBond", 1}, {"BP", 0}};
-    map<string, double> enecoeff={{"length", 3000}, {"angle", 8}, {"hydtor", 0}, {"dihedral", 0}, {"init", 0}, {"initdist", 1}, {"templatedist", 1}, {"improper", 0}, {"electros", 0}, {"LJ", 0}, {"HBond", 1}, {"BP", 3.0}, {"Stack", 5}, {"Clash", 20}};
-
-    int istart, iend;
-
-    istart=0;
-    iend=superimposedstr.residues.size();
-    
-    //optimization
-    vector<vector<Point3s>> gradptv;
-    prepgrad(superimposedstr, gradptv);
-
-    FragmentStructure superimposedstr_prev;
-    vector<vector<Point3s>> gradptv_prev;
-    deque<vector<vector<Point3s>>> s_list, y_list;
-    deque<double> rho_list;
-    vector<vector<Point3s>> z;
-    prepgrad(superimposedstr, z);
-    int m=15;
-
-    list<InitPosobj> binitobj;
-    list<InitPairobj> binitpairobj;
-    list<InitPairobj> btemplatepairobj;
-    list<BondLengthobj> blengthobj;
-	list<BondAngleobj> bangleobj;
-    list<BondDihedralobj> dihedralobj;
-    list<TElectrobj> telecteobj;
-	list<LennardsJobj> ljobj;
-	list<Hbondobj> hbondobj;
-    list<BasePairobj> bpobj;
-    list<BPdistobj> bpdistobj;
-    list<Hbond2hydobj> hbondbpobj;
-    list<Stackingobj> stackobj;
-    list<StackGeoobjMC> stackgeoobj;
-    list<Clashobj> clashobj;
-    list<SingleNtTemplateobj> nttempobj;
-
-    vector<vector<int>> indices;
-    vector<vector<int>> orders;
-
-    if(enecoeff["init"] > 0) setinitobj(superimposedstr, inputtedstr, inputtedstrflag, gradptv, binitobj, enecoeff["init"], moveresidues);
-    if(enecoeff["initdist"] > 0) setinitpairobj(superimposedstr, inputtedstr, inputtedstrflag, gradptv, binitpairobj, enecoeff["initdist"], moveresidues);
-    if(enecoeff["templatedist"] > 0) settemplatepairobj(superimposedstr, templatestrall, templatestrallflag, gradptv, btemplatepairobj, enecoeff["templatedist"]/templatestrall.size(), moveresidues);
-
-    if(enecoeff["length"] > 0)
-    {
-        setlengthobj(superimposedstr, gradptv, istart, iend, bindmap, extparameters.blengthparam, extparameters.blengthstdval, extparameters.adjblengthparam, extparameters.adjblengthstdval, extparameters.hydparam, extparameters.hydparamidx, extparameters.hydaddlength, extparameters.hydaddlengthidx, enecoeff["length"], blengthobj, moveresidues);
-    }
-    if(enecoeff["angle"] > 0)
-    {
-        setangleobj(superimposedstr, gradptv, istart, iend, bindmap, extparameters.ntangleparam, extparameters.ntangleparamidx, extparameters.adjangleparam, extparameters.adjangleparamidx, extparameters.hydaddangle, extparameters.hydaddangleidx, enecoeff["angle"], bangleobj, moveresidues);
-    }
-
-    if(enecoeff["hydtor"] > 0){
-        setdihedralobj(superimposedstr, gradptv, istart, iend, extparameters.hydtorsionparam, extparameters.btorsionparam, enecoeff["hydtor"], dihedralobj, moveresidues);
-    }
-    
-    //if(enecoeff["BP"] > 0) setbasepairobj(superimposedstr, gradptv, bindmap, bpobj);
-    if(enecoeff["Stack"] > 0){
-        setstackingobj(superimposedstr, gradptv, ideal_rna, stackmap, stackdistmap, enecoeff["Stack"], stackobj);
-        //setstackingobj(superimposedstr, gradptv, ideal_rna, stackmap, stackdistmap, indices, orders, enecoeff["Stack"], stackobj);
-    }
-
-    //if(enecoeff["Stack"] > 0) setstackingobj(superimposedstr, gradptv, ideal_rna, stackmap, stackdistmap, enecoeff["Stack"], stackobj);
-
-    if(enecoeff["electros"] > 0 || enecoeff["LJ"] > 0 || enecoeff["HBond"] > 0 || enecoeff["Clash"] > 0) getmolConnect(superimposedstr, gradptv, stackmap, extparameters.atomfeatures, extparameters.clashparam, extparameters.bphbond,
-                                                                                              extparameters.molConnectone, extparameters.molConnecttwo, extparameters.molConnectthree, 
-                                                                                              extparameters.molAdjConnectone, extparameters.molAdjConnecttwo, extparameters.molAdjConnectthree, 
-                                                                                              extparameters.molAdjConnectoneidx, extparameters.molAdjConnecttwoidx, extparameters.molAdjConnectthreeidx, bindmap, moveresidues,
-                                                                                              telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, enecoeff);
-                                                                                        
-    startene = getcovalentenergystemloop(blengthobj, bangleobj, dihedralobj, bpobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
-    int estop_counter, stop_count;
-    double averagenorm, energy, minenergy;
-    //int epochs=50000;
-    stop_count = 50;
-    minenergy = 100000000;
-    estop_counter=0;
-    for (int epoch = 0; epoch < epochs; ++epoch){
-        initgrad(superimposedstr, gradptv);
-        getgradientloop(blengthobj, bangleobj, dihedralobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
-
-        if(epoch > 1){
-            updatelbfgsfeatures(superimposedstr, superimposedstr_prev, gradptv, gradptv_prev, s_list, y_list, rho_list, moveresidues, m); //lbfgs
-            lbfgsupdate(gradptv, s_list, y_list, rho_list, moveresidues, z); //lbfgs
-        }
-
-        superimposedstr_prev=superimposedstr; //lbfgs
-        gradptv_prev=gradptv; //lbfgs
-        
-        if(epoch > 1){
-            averagenorm = calcaveragenorm(z);
-            //energy = goldenelectionsearch(superimposedstr, z, blengthobj, bangleobj, bpobj, binitobj, telecteobj, ljobj, hbondobj, moveresidues); //lbfgs
-            double alpha0 = 3.0;
-            double rho = 0.5;
-            double beta = 0.0000001;
-            energy = linesearch(superimposedstr, z, blengthobj, bangleobj, dihedralobj, bpobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj, moveresidues, alpha0, rho, beta);
-        }else{
-            averagenorm = calcaveragenorm(gradptv);
-            energy = goldenelectionsearchloop(superimposedstr, gradptv, blengthobj, bangleobj, dihedralobj, bpobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj, moveresidues);
-        }
-        //cout<< "epoch "<<epoch+1 << ": "<< energy<<endl;
-
-        if(energy < minenergy){
-            minenergy = energy;
-            estop_counter = 0;
-        }else{
-            estop_counter += 1;
-        }
-
-        if(stop_count == estop_counter) break;
-    }
-
-    endene = getcovalentenergystemloop(blengthobj, bangleobj, dihedralobj, bpobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
-}
-*/
 
 void fragmentoptimization(
-    FragmentStructure &superimposedstr, const FragmentStructure &inputtedstr, const vector<vector<bool>> &inputtedstrflag, const vector<FragmentStructure> &templatestrall, const vector<vector<vector<bool>>> &templatestrallflag, const map<string, map<string, vector<ModelUnit>>> &ideal_rna, 
+    FragmentStructure &superimposedstr, const FragmentStructure &inputtedstr, const vector<vector<bool>> &inputtedstrflag, const vector<FragmentStructure> &templatestrall, const vector<vector<vector<bool>>> &templatestrallflag, const vector<double> &init_weight, const map<string, map<string, vector<ModelUnit>>> &ideal_rna, 
     double &startene, double &endene, const ExtParams &extparameters, vector<vector<int>> &bindmap, const vector<vector<pair<int, double>>> &stackmap, const vector<vector<double>> &cbpmap, const vector<vector<double>> &noncbpmap, const map<string, vector<vector<vector<double>>>> &bpdistmap, const map<string, map<string, vector<vector<vector<double>>>>> &stackdistmap, vector<bool> &moveresidues, const double maxtime, const int &epochs, Logger &logger)
     //map<string, vector<vector<double>>> &blengthparam, map<string, vector<vector<double>>> &adjblengthparam,
     //map<string, vector<vector<double>>> &ntangleparam, map<string, vector<vector<int>>> &ntangleparamidx, map<string, vector<vector<double>>> &adjangleparam, map<string, vector<vector<int>>> &adjangleparamidx)
@@ -3486,7 +3480,8 @@ void fragmentoptimization(
     
     //map<string, double> enecoeff={{"length", 500}, {"angle",160}, {"hydtor", 0}, {"dihedral", 0}, {"init", 0}, {"initdist", 0.5}, {"templatedist", 0.5}, {"improper", 0}, {"electros", 1.0}, {"LJ", 1.0}, {"HBond", 20.0}, {"BP", 1.0}, {"Stack", 2.0}, {"StackGeo", 5.0}, {"Clash", 5.0}, {"Nt", 5.0}, {"BPdist", 0.0}, {"BasePlane", 5.0}}; 
     //map<string, double> enecoeff={{"length", 400}, {"angle",120}, {"hydtor", 0}, {"dihedral", 0}, {"init", 0}, {"initdist", 0.5}, {"templatedist", 0.5}, {"improper", 0}, {"electros", 1.0}, {"LJ", 1.0}, {"HBond", 20.0}, {"BP", 0.0}, {"Stack", 0.5}, {"StackGeo", 0.0}, {"Clash", 5.0}, {"Nt", 0.0}, {"BPdist", 0.0}, {"BasePlane", 5.0}}; 
-    map<string, double> enecoeff={{"length", 400}, {"angle",120}, {"hydtor", 0}, {"dihedral", 0}, {"init", 0}, {"initdist", 0.5}, {"templatedist", 0.5}, {"improper", 0}, {"electros", 1.0}, {"LJ", 1.0}, {"HBond", 10.0}, {"BP", 1.0}, {"Stack", 0.5}, {"StackGeo", 0.0}, {"Clash", 5.0}, {"Nt", 0.5}, {"BPdist", 0.0}, {"BasePlane", 1.0}}; 
+    map<string, double> enecoeff={{"length", 400}, {"angle",120}, {"tor", 0.0}, {"sugar", 0.0}, {"init", 0}, {"initdist", 0.5}, {"templatedist", 0.5}, {"improper", 0}, {"electros", 1.0}, {"LJ", 1.0}, {"HBond", 25.0}, {"BBHBond", 7.5}, {"BBBaseHBond", 0.0}, {"BP", 12.5}, {"Stack", 0.5}, {"StackGeo", 0.0}, {"Clash", 5.0}, {"Nt", 0.0}, {"BPdist", 3.0}, {"BasePlane", 30.0}}; 
+    //map<string, double> enecoeff={{"length", 0}, {"angle",0}, {"tor", 0.0}, {"sugar", 0.0}, {"hydtor", 0}, {"dihedral", 0}, {"init", 0}, {"initdist", 0}, {"templatedist", 0}, {"improper", 0}, {"electros", 0}, {"LJ", 0}, {"HBond", 0}, {"BBHBond", 5.0}, {"BBHBond", 0.0}, {"BP", 0.0}, {"Stack", 0.0}, {"StackGeo", 0.0}, {"Clash", 0}, {"Nt", 0}, {"BPdist", 0.0}, {"BasePlane", 0}}; 
 
     //FragmentStructure superimposedstr;
     int istart, iend;
@@ -3531,9 +3526,10 @@ void fragmentoptimization(
     list<StackGeoobjMC> stackgeoobj;
     list<Clashobj> clashobj;
     list<SingleNtTemplateobj> nttempobj;
+    list<MultiBondDihedralobj> sugardihedralobj;
 
     if(enecoeff["init"] > 0) setinitobj(superimposedstr, inputtedstr, inputtedstrflag, gradptv, binitobj, enecoeff["init"], moveresidues);
-    if(enecoeff["initdist"] > 0) setinitpairobj(superimposedstr, inputtedstr, inputtedstrflag, gradptv, binitpairobj, enecoeff["initdist"]/(1+templatestrall.size()), moveresidues);
+    if(enecoeff["initdist"] > 0) setinitpairobj(superimposedstr, inputtedstr, inputtedstrflag, init_weight, gradptv, binitpairobj, enecoeff["initdist"]/(1+templatestrall.size()), moveresidues);
     if(enecoeff["templatedist"] > 0) settemplatepairobj(superimposedstr, templatestrall, templatestrallflag, gradptv, btemplatepairobj, enecoeff["initdist"]/(1+templatestrall.size()), moveresidues);
 
     if(enecoeff["length"] > 0){
@@ -3543,11 +3539,11 @@ void fragmentoptimization(
         setangleobj(superimposedstr, gradptv, istart, iend, bindmap, extparameters.ntangleparam, extparameters.ntangleparamidx, extparameters.adjangleparam, extparameters.adjangleparamidx, extparameters.hydaddangle, extparameters.hydaddangleidx, enecoeff["angle"], bangleobj, moveresidues);
     }
 
-    if(enecoeff["hydtor"] > 0){
-        setdihedralobj(superimposedstr, gradptv, istart, iend, extparameters.hydtorsionparam, extparameters.btorsionparam, enecoeff["hydtor"], dihedralobj, moveresidues);
+    if(enecoeff["tor"] > 0){
+        setdihedralobj(superimposedstr, gradptv, istart, iend, extparameters.bbtorsion, enecoeff["tor"], dihedralobj, moveresidues);
     }
 
-    if(enecoeff["BP"] > 0) setbasepairobj(superimposedstr, gradptv, bindmap, cbpmap, noncbpmap, enecoeff["BP"], bpobj);
+    if(enecoeff["sugar"] > 0) setsugardihedralobj(superimposedstr, gradptv, istart, iend, extparameters.sugartorsion, enecoeff["sugar"], sugardihedralobj, moveresidues);
     
     if(enecoeff["BasePlane"] > 0) setbaseplaneobj(superimposedstr, gradptv, enecoeff["BasePlane"], baseplaneobj);
     
@@ -3555,22 +3551,25 @@ void fragmentoptimization(
 
     if(enecoeff["StackGeo"] > 0) setstackinggeoobj(superimposedstr, gradptv, extparameters.stackparam, stackmap, AtomPtrslistA, AtomgradlistA, AtomPtrslistB, AtomgradlistB, enecoeff["StackGeo"], stackgeoobj);
 
-    if(enecoeff["BPdist"] > 0) setbpobj(superimposedstr, gradptv, ideal_rna, bindmap, bpdistmap, enecoeff["BPdist"], bpdistobj);
+    if(enecoeff["BPdist"] > 0) setbpobj(superimposedstr, gradptv, cbpmap, ideal_rna, bpdistmap, enecoeff["BPdist"], bpdistobj);
     
         //setstackingobj(superimposedstr, gradptv, ideal_rna, stackmap, stackdistmap, indices, orders, enecoeff["Stack"], stackobj);
     if(enecoeff["Nt"] > 0) setnttemplateobj(superimposedstr, gradptv, ideal_rna, indices, enecoeff["Nt"], nttempobj);
     //if(enecoeff["Stack"] > 0) setstackingobj(superimposedstr, gradptv, ideal_rna, stackmap, stackdistmap, enecoeff["Stack"], stackobj);
     
-    if(enecoeff["electros"] > 0 || enecoeff["LJ"] > 0 || enecoeff["HBond"] > 0 || enecoeff["Clash"] > 0) getmolConnect(superimposedstr, gradptv, stackmap, extparameters.atomfeatures, extparameters.clashparam, extparameters.bphbond,
+    if(enecoeff["electros"] > 0 || enecoeff["LJ"] > 0 || enecoeff["HBond"] > 0 || enecoeff["BBHBond"] > 0 || enecoeff["BBBaseHBond"] > 0 || enecoeff["Clash"] > 0) getmolConnect(superimposedstr, gradptv, stackmap, extparameters.atomfeatures, extparameters.clashparam, 
+                                                                                                extparameters.bphbond, extparameters.bbhbond,
                                                                                                 extparameters.molConnectone, extparameters.molConnecttwo, extparameters.molConnectthree, 
                                                                                                 extparameters.molAdjConnectone, extparameters.molAdjConnecttwo, extparameters.molAdjConnectthree, 
                                                                                                 extparameters.molAdjConnectoneidx, extparameters.molAdjConnecttwoidx, extparameters.molAdjConnectthreeidx, bindmap, cbpmap, noncbpmap, moveresidues,
                                                                                                 telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, enecoeff);
     
+    if(enecoeff["BP"] > 0) setbasepairobj(superimposedstr, gradptv, cbpmap, noncbpmap, enecoeff["BP"], bpobj);
+
     if(enecoeff["electros"] <= 0) telecteobj.clear();
     if(enecoeff["LJ"] <= 0) ljobj.clear();
     
-    if(enecoeff["HBond"] <= 0){
+    if(enecoeff["HBond"] <= 0 && enecoeff["BBHBond"]<= 0 && enecoeff["BBBaseHBond"]<= 0){
         hbondobj.clear();
         hbondbpobj.clear();
     }
@@ -3587,14 +3586,35 @@ void fragmentoptimization(
     estop_counter=0;  
     auto start_time = std::chrono::high_resolution_clock::now();
 
-    startene = getcovalentenergystem(blengthobj, bangleobj, dihedralobj, baseplaneobj, bpobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
+    startene = getcovalentenergystem(blengthobj, bangleobj, dihedralobj, sugardihedralobj, baseplaneobj, bpobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
+
+    bool reset_frag = true;
+    int frag_rest_iter = 50;
 
     for (int epoch = 0; epoch < epochs; ++epoch){
-        initgrad(superimposedstr, gradptv);
-        getgradient(blengthobj, bangleobj, dihedralobj, baseplaneobj, bpobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
-        //averagenorm = calcaveragenorm(gradptv);
 
-        if(epoch > 1){
+        /*
+        if(epoch > 0 && epoch % frag_rest_iter == 0){
+            remolConnect(superimposedstr, gradptv, stackmap, stackdistmap, 
+                        ideal_rna, extparameters.atomfeatures, extparameters.clashparam, 
+                        extparameters.bphbond, extparameters.bbhbond,
+                        extparameters.molConnectone, extparameters.molConnecttwo, extparameters.molConnectthree,
+                        extparameters.molAdjConnectone, extparameters.molAdjConnecttwo, extparameters.molAdjConnectthree, 
+                        bindmap, cbpmap, noncbpmap, moveresidues,
+                        hbondobj, hbondbpobj, stackobj, enecoeff);
+
+            reset_frag = true;
+            s_list.clear();
+            y_list.clear();
+            rho_list.clear();
+        }
+        */
+
+        initgrad(superimposedstr, gradptv);
+        getgradient(blengthobj, bangleobj, dihedralobj, sugardihedralobj, baseplaneobj, bpobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
+        //averagenorm = calcaveragenorm(gradptv);
+        //exit(1);
+        if(!reset_frag){
             updatelbfgsfeatures(superimposedstr, superimposedstr_prev, gradptv, gradptv_prev, s_list, y_list, rho_list, moveresidues, m); //lbfgs
             lbfgsupdate(gradptv, s_list, y_list, rho_list, moveresidues, z); //lbfgs
         }
@@ -3603,14 +3623,14 @@ void fragmentoptimization(
         gradptv_prev=gradptv; //lbfgs
 
         //energy = goldenelectionsearch(superimposedstr, gradptv, blengthobj, bangleobj, bpobj, binitobj, telecteobj, ljobj, hbondobj, moveresidues);
-        if(epoch > 1){
+        if(!reset_frag){
             averagenorm = calcaveragenorm(z, 10000);
             //energy = goldenelectionsearch(superimposedstr, z, blengthobj, bangleobj, bpobj, binitobj, telecteobj, ljobj, hbondobj, moveresidues); //lbfgs
             
             double alpha0 = 1.0;
             double rho = 0.5;
             double beta = 0.1;
-            energy = linesearch(superimposedstr, z, blengthobj, bangleobj, dihedralobj, baseplaneobj, bpobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj, moveresidues, alpha0, rho, beta);
+            energy = linesearch(superimposedstr, z, blengthobj, bangleobj, dihedralobj, sugardihedralobj, baseplaneobj, bpobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj, moveresidues, alpha0, rho, beta);
             //energy = goldenelectionsearch(superimposedstr, z, blengthobj, bangleobj, dihedralobj, bpobj, stackobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, moveresidues);
             
             //averagenorm = calcaveragenorm(gradptv);
@@ -3619,13 +3639,17 @@ void fragmentoptimization(
         }
         else{
             averagenorm = calcaveragenorm(gradptv, 10000);
-            energy = goldenelectionsearch(superimposedstr, gradptv, blengthobj, bangleobj, dihedralobj, baseplaneobj, bpobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj, moveresidues);
+            energy = goldenelectionsearch(superimposedstr, gradptv, blengthobj, bangleobj, dihedralobj, sugardihedralobj, baseplaneobj, bpobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj, moveresidues);
+            reset_frag = false;
         }
 
         auto end_time = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> elapsed_time = end_time - start_time;
         //logger.log("epoch "+to_string(epoch+1)+", energy: "+to_string(energy)+" Time: "+to_string(elapsed_time.count()));
-
+        //cout<< "epoch (L-BFGS): " << epoch+1 << ", "
+                   //<< "energy: " << energy << ", "
+                   //<< "Time: " << elapsed_time.count() << "\n"<<endl;
+        
         log_buffer << "epoch (L-BFGS): " << epoch+1 << ", "
                    << "energy: " << energy << ", "
                    << "Time: " << elapsed_time.count() << "\n";
@@ -3647,222 +3671,9 @@ void fragmentoptimization(
         if(elapsed_time.count() > maxtime) break;
     }
 
-    /*
-    estop_counter = 0;
-    for (int epoch = 0; epoch < epochs; ++epoch){
-        initgrad(superimposedstr, gradptv);
-        getgradient(blengthobj, bangleobj, dihedralobj, bpobj, stackobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj);
-        
-        averagenorm = calcaveragenorm(gradptv);
-        energy = goldenelectionsearch(superimposedstr, gradptv, blengthobj, bangleobj, dihedralobj, bpobj, stackobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, moveresidues);
-        
-        auto end_time = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> elapsed_time = end_time - start_time;
-
-        log_buffer << "epoch (Sweepy descent): " << epoch+1 << ", "
-                   << "energy: " << energy << ", "
-                   << "Time: " << elapsed_time.count() << "\n";
-
-        if (epoch % 100 == 0 && !log_buffer.str().empty()) {
-            logger.log(log_buffer.str());
-            log_buffer.str("");
-            log_buffer.clear();
-        }
-
-        if(energy < minenergy){
-            minenergy = energy;
-            estop_counter = 0;
-        }else{
-            estop_counter += 1;
-        }
-
-        if(stop_count == estop_counter) break;
-        if(elapsed_time.count() > maxtime) break;
-    }
-    */
-
     if (log_buffer.tellp() > 0) { 
         logger.log(log_buffer.str());
     }
 
-    endene = getcovalentenergystem(blengthobj, bangleobj, dihedralobj, baseplaneobj, bpobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
+    endene = getcovalentenergystem(blengthobj, bangleobj, dihedralobj, sugardihedralobj, baseplaneobj, bpobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
 }
-
-
-/*
-void fragmentoptimizationbpopt(
-    FragmentStructure &superimposedstr, const FragmentStructure &inputtedstr, const vector<vector<bool>> &inputtedstrflag, const vector<FragmentStructure> &templatestrall, const vector<vector<vector<bool>>> &templatestrallflag, 
-    double &startene, double &endene, const ExtParams &extparameters, vector<vector<int>> &bindmap, vector<vector<int>> &stackmap, vector<bool> &moveresidues, const int &epochs)
-    //map<string, vector<vector<double>>> &blengthparam, map<string, vector<vector<double>>> &adjblengthparam,
-    //map<string, vector<vector<double>>> &ntangleparam, map<string, vector<vector<int>>> &ntangleparamidx, map<string, vector<vector<double>>> &adjangleparam, map<string, vector<vector<int>>> &adjangleparamidx)
-{
-    //map<string, double> enecoeff={{"length", 400}, {"angle", 4}, {"dihedral", 0}, {"init", 0.5}, {"improper", 0}, {"electros", 0}, {"LJ", 0}, {"HBond", 0}, {"BP", 1}};
-    map<string, double> enecoeff={{"length", 3000}, {"angle", 8}, {"dihedral", 0}, {"init", 0}, {"initdist", 1}, {"templatedist", 1}, {"improper", 0}, {"electros", 1}, {"LJ", 1}, {"HBond", 1}, {"BP", 3.0}, {"Clash", 0}};
-
-    //FragmentStructure superimposedstr;
-
-    int ntnum = superimposedstr.residues.size();
-    
-    //optimization
-    vector<vector<Point3s>> gradptv;
-    prepgrad(superimposedstr, gradptv);
-
-    list<InitPosobj> binitobj;
-    list<InitPairobj> binitpairobj;
-    list<InitPairobj> btemplatepairobj;
-    list<BondLengthobj> blengthobj;
-	list<BondAngleobj> bangleobj;
-    list<BondDihedralobj> dihedralobj;
-    list<BasePairobj> bpobj;
-    list<BPdistobj> bpdistobj;
-    list<TElectrobj> telecteobj;
-	list<LennardsJobj> ljobj;
-	list<Hbondobj> hbondobj;
-    list<Hbond2hydobj> hbondbpobj;
-    list<Stackingobj> stackobj;
-    list<StackGeoobjMC> stackgeoobj;
-    list<Clashobj> clashobj;
-    list<SingleNtTemplateobj> nttempobj;
-
-    if(enecoeff["init"] > 0) setinitobj(superimposedstr, inputtedstr, inputtedstrflag, gradptv, binitobj, enecoeff["init"], moveresidues);
-    if(enecoeff["initdist"] > 0) setinitpairobj(superimposedstr, inputtedstr, inputtedstrflag, gradptv, binitpairobj, enecoeff["initdist"], moveresidues);
-    if(enecoeff["templatedist"] > 0) settemplatepairobj(superimposedstr, templatestrall, templatestrallflag, gradptv, btemplatepairobj, enecoeff["templatedist"]/templatestrall.size(), moveresidues);
-
-    if(enecoeff["length"] > 0){
-        setlengthobj(superimposedstr, gradptv, 0, ntnum, bindmap, extparameters.blengthparam, extparameters.blengthstdval, extparameters.adjblengthparam, extparameters.adjblengthstdval, extparameters.hydparam, extparameters.hydparamidx, extparameters.hydaddlength, extparameters.hydaddlengthidx, enecoeff["length"], blengthobj, moveresidues);
-        //setlengthobj(superimposedstr, gradptv, 0, ntnum, bindmap, extparameters.blengthparam, extparameters.adjblengthparam, enecoeff["length"], blengthobj, moveresidues);
-    }
-    if(enecoeff["angle"] > 0){
-        setangleobj(superimposedstr, gradptv, 0, ntnum, bindmap, extparameters.ntangleparam, extparameters.ntangleparamidx, extparameters.adjangleparam, extparameters.adjangleparamidx, extparameters.hydaddangle, extparameters.hydaddangleidx, enecoeff["angle"], bangleobj, moveresidues);
-        //setangleobj(superimposedstr, gradptv, 0, ntnum, bindmap, extparameters.ntangleparam, extparameters.ntangleparamidx, extparameters.adjangleparam, extparameters.adjangleparamidx, enecoeff["angle"], bangleobj, moveresidues);
-    }
-
-    if(enecoeff["hydtor"] > 0){
-        setdihedralobj(superimposedstr, gradptv, 0, ntnum, extparameters.hydtorsionparam, extparameters.btorsionparam, enecoeff["hydtor"], dihedralobj, moveresidues);
-    }
-
-    if(enecoeff["BP"] > 0) setbasepairobj(superimposedstr, gradptv, bindmap, enecoeff["BP"], bpobj);
-
-    if(enecoeff["electros"] > 0 || enecoeff["LJ"] > 0 || enecoeff["HBond"] > 0 || enecoeff["Clash"] > 0) getmolConnect(superimposedstr, gradptv, stackmap, extparameters.atomfeatures, extparameters.clashparam, extparameters.bphbond,
-                                                                                              extparameters.molConnectone, extparameters.molConnecttwo, extparameters.molConnectthree, 
-                                                                                              extparameters.molAdjConnectone, extparameters.molAdjConnecttwo, extparameters.molAdjConnectthree, 
-                                                                                              extparameters.molAdjConnectoneidx, extparameters.molAdjConnecttwoidx, extparameters.molAdjConnectthreeidx, bindmap, moveresidues,
-                                                                                              telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, enecoeff);
-
-    startene = getcovalentenergystem(blengthobj, bangleobj, dihedralobj, bpobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
-    
-    int estop_counter, stop_count;
-    double averagenorm, energy, minenergy;
-    //int epochs=10000;
-    stop_count = 50;
-    minenergy = 100000000;
-    estop_counter=0;
-    for (int epoch = 0; epoch < epochs; ++epoch){
-        initgrad(superimposedstr, gradptv);
-        getgradient(blengthobj, bangleobj, dihedralobj, bpobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
-
-        averagenorm = calcaveragenorm(gradptv);
-        energy = goldenelectionsearch(superimposedstr, gradptv, blengthobj, bangleobj, dihedralobj, bpobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj, moveresidues);
-        //cout<< "epoch "<<epoch+1 << ": "<< energy<<endl;
-
-        if(energy < minenergy){
-            minenergy = energy;
-            estop_counter = 0;
-        }else{
-            estop_counter += 1;
-        }
-
-        if(stop_count == estop_counter) break;
-    }
-
-    endene = getcovalentenergystem(blengthobj, bangleobj, dihedralobj, bpobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
-}
-
-void fragmentoptimizationallopt(
-    FragmentStructure &superimposedstr, const FragmentStructure &inputtedstr, const vector<vector<bool>> &inputtedstrflag, const vector<FragmentStructure> &templatestrall, const vector<vector<vector<bool>>> &templatestrallflag, 
-    double &startene, double &endene, const ExtParams &extparameters, vector<vector<int>> &bindmap, vector<vector<int>> &stackmap, vector<bool> &moveresidues, const int &epochs)
-    //map<string, vector<vector<double>>> &blengthparam, map<string, vector<vector<double>>> &adjblengthparam,
-    //map<string, vector<vector<double>>> &ntangleparam, map<string, vector<vector<int>>> &ntangleparamidx, map<string, vector<vector<double>>> &adjangleparam, map<string, vector<vector<int>>> &adjangleparamidx)
-{
-    //map<string, double> enecoeff={{"length", 400}, {"angle", 4}, {"dihedral", 0}, {"init", 0.5}, {"improper", 0}, {"electros", 0}, {"LJ", 0}, {"HBond", 0}, {"BP", 1}};
-    map<string, double> enecoeff={{"length", 3000}, {"angle", 8}, {"dihedral", 0}, {"init", 0}, {"initdist", 1}, {"templatedist", 1}, {"improper", 0}, {"electros", 1}, {"LJ", 1}, {"HBond", 1}, {"BP", 3.0}, {"Clash", 0}};
-
-    //FragmentStructure superimposedstr;
-
-    int ntnum = superimposedstr.residues.size();
-    
-    //optimization
-    vector<vector<Point3s>> gradptv;
-    prepgrad(superimposedstr, gradptv);
-
-    list<InitPosobj> binitobj;
-    list<InitPairobj> binitpairobj;
-    list<InitPairobj> btemplatepairobj;
-    list<BondLengthobj> blengthobj;
-	list<BondAngleobj> bangleobj;
-    list<BondDihedralobj> dihedralobj;
-    list<BasePairobj> bpobj;
-    list<BPdistobj> bpdistobj;
-    list<TElectrobj> telecteobj;
-	list<LennardsJobj> ljobj;
-	list<Hbondobj> hbondobj;
-    list<Hbond2hydobj> hbondbpobj;
-    list<Stackingobj> stackobj;
-    list<StackGeoobjMC> stackgeoobj;
-    list<Clashobj> clashobj;
-    list<SingleNtTemplateobj> nttempobj;
-
-    if(enecoeff["init"] > 0) setinitobj(superimposedstr, inputtedstr, inputtedstrflag, gradptv, binitobj, enecoeff["init"], moveresidues);
-    if(enecoeff["initdist"] > 0) setinitpairobj(superimposedstr, inputtedstr, inputtedstrflag, gradptv, binitpairobj, enecoeff["initdist"], moveresidues);
-    if(enecoeff["templatedist"] > 0) settemplatepairobj(superimposedstr, templatestrall, templatestrallflag, gradptv, btemplatepairobj, enecoeff["templatedist"]/templatestrall.size(), moveresidues);
-
-    if(enecoeff["length"] > 0){
-        setlengthobj(superimposedstr, gradptv, 0, ntnum, bindmap, extparameters.blengthparam, extparameters.blengthstdval, extparameters.adjblengthparam, extparameters.adjblengthstdval, extparameters.hydparam, extparameters.hydparamidx, extparameters.hydaddlength, extparameters.hydaddlengthidx, enecoeff["length"], blengthobj, moveresidues);
-        //setlengthobj(superimposedstr, gradptv, 0, ntnum, bindmap, extparameters.blengthparam, extparameters.adjblengthparam, enecoeff["length"], blengthobj, moveresidues);
-    }
-    if(enecoeff["angle"] > 0){
-        setangleobj(superimposedstr, gradptv, 0, ntnum, bindmap, extparameters.ntangleparam, extparameters.ntangleparamidx, extparameters.adjangleparam, extparameters.adjangleparamidx, extparameters.hydaddangle, extparameters.hydaddangleidx, enecoeff["angle"], bangleobj, moveresidues);
-        //setangleobj(superimposedstr, gradptv, 0, ntnum, bindmap, extparameters.ntangleparam, extparameters.ntangleparamidx, extparameters.adjangleparam, extparameters.adjangleparamidx, enecoeff["angle"], bangleobj, moveresidues);
-    }
-
-    if(enecoeff["hydtor"] > 0){
-        setdihedralobj(superimposedstr, gradptv, 0, ntnum, extparameters.hydtorsionparam, extparameters.btorsionparam, enecoeff["hydtor"], dihedralobj, moveresidues);
-    }
-
-    if(enecoeff["BP"] > 0) setbasepairobj(superimposedstr, gradptv, bindmap, enecoeff["BP"], bpobj);
-
-    if(enecoeff["electros"] > 0 || enecoeff["LJ"] > 0 || enecoeff["HBond"] > 0 || enecoeff["Clash"] > 0) getmolConnect(superimposedstr, gradptv, stackmap, extparameters.atomfeatures, extparameters.clashparam, extparameters.bphbond,
-                                                                                              extparameters.molConnectone, extparameters.molConnecttwo, extparameters.molConnectthree, 
-                                                                                              extparameters.molAdjConnectone, extparameters.molAdjConnecttwo, extparameters.molAdjConnectthree, 
-                                                                                              extparameters.molAdjConnectoneidx, extparameters.molAdjConnecttwoidx, extparameters.molAdjConnectthreeidx, bindmap, moveresidues,
-                                                                                              telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, enecoeff);
-                                                                                        
-    startene = getcovalentenergystem(blengthobj, bangleobj, dihedralobj, bpobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
-
-    int estop_counter, stop_count;
-    double averagenorm, energy, minenergy;
-    //int epochs=10000;
-    stop_count = 50;
-    minenergy = 100000000;
-    estop_counter=0;
-    for (int epoch = 0; epoch < epochs; ++epoch){
-        initgrad(superimposedstr, gradptv);
-        getgradient(blengthobj, bangleobj, dihedralobj, bpobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
-        averagenorm = calcaveragenorm(gradptv);
-
-        energy = goldenelectionsearch(superimposedstr, gradptv, blengthobj, bangleobj, dihedralobj, bpobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj, moveresidues);
-        //cout<< "epoch "<<epoch+1 << ": "<< energy<<endl;
-
-        if(energy < minenergy){
-            minenergy = energy;
-            estop_counter = 0;
-        }else{
-            estop_counter += 1;
-        }
-
-        if(stop_count == estop_counter) break;
-    }
-
-    endene = getcovalentenergystem(blengthobj, bangleobj, dihedralobj, bpobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
-}
-*/

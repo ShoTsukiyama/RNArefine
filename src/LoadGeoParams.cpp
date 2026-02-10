@@ -1460,6 +1460,206 @@ bool loadbphbondparameters(string basepath, map<char, map<char, map<int, map<int
 	return true;
 }
 
+bool loadsugartorsion(string basepath, map<string, vector<vector<vector<double>>>> &torsionparam)
+{
+    string	oneline, field;
+    double mean, stdval;
+    int paramtype, count;
+    vector<string> nts = {"A","C","G","U"};
+
+    for(int nt=0;nt<4;nt++)
+    {
+        torsionparam[nts[nt]].resize(2);
+        for(int j=0;j<2;j++){
+            torsionparam[nts[nt]][j].resize(9);
+            for(int k=0;k<9;k++){
+                torsionparam[nts[nt]][j][k].resize(2);
+            }
+        }
+    }
+
+    for(int i=1;i<3;i++)
+    {
+        ifstream inputFile(basepath+"/class_"+ to_string(i) +".txt");
+        if(!inputFile.is_open())
+		{
+			cout<<"Parameter file can not be opened (sugar torsion)\n"<<endl;
+			return false;
+		}
+
+        paramtype = 0;
+        while(getline(inputFile, oneline))
+        {
+            stringstream ssbase(oneline);
+            count=0;
+            while (getline(ssbase, field, ','))
+            {
+                if(count==0) mean=stof(field); //mean
+                if(count==1) stdval=stof(field); //stdval
+                count+=1;
+            }
+            
+            for(int nt=0;nt<4;nt++){
+                torsionparam[nts[nt]][i-1][paramtype][0] = mean;
+                torsionparam[nts[nt]][i-1][paramtype][1] = stdval;
+            }
+            paramtype += 1;
+        }
+    }
+
+    /*
+    for(int nt=0;nt<4;nt++)
+    {
+        for(int j=0;j<2;j++){
+            for(int k=0;k<6;k++){
+                cout<<torsionparam[nts[nt]][j][k][0] << "-" << torsionparam[nts[nt]][j][k][1] << endl;
+            }
+        }
+    }
+    */
+
+    return true;
+}
+
+bool loadbbtorsion(string basepath, map<string, vector<vector<double>>> &torsionparam)
+{
+    string	oneline, field;
+    double mean, stdval;
+    int paramtype, count;
+    vector<string> nts = {"A","C","G","U"};
+
+    for(int nt=0;nt<4;nt++)
+    {
+        torsionparam[nts[nt]].resize(5);
+        for(int j=0;j<5;j++){
+            torsionparam[nts[nt]][j].resize(2);
+        }
+    }
+
+    ifstream inputFile(basepath+"/tor_bb.txt");
+    if(!inputFile.is_open())
+    {
+        cout<<"Parameter file can not be opened (bb torsion)\n"<<endl;
+        return false;
+    }
+
+    paramtype = 0;
+    while(getline(inputFile, oneline))
+    {
+        stringstream ssbase(oneline);
+        count=0;
+        while (getline(ssbase, field, ','))
+        {
+            if(count==0) mean=stof(field); //mean
+            if(count==1) stdval=stof(field); //stdval
+            count+=1;
+        }
+        
+        for(int nt=0;nt<4;nt++){
+            torsionparam[nts[nt]][paramtype][0] = mean;
+            torsionparam[nts[nt]][paramtype][1] = stdval;
+        }
+        paramtype += 1;
+    }
+
+    /*
+    for(int nt=0;nt<4;nt++)
+    {
+        for(int j=0;j<5;j++){
+            cout<<torsionparam[nts[nt]][j][0] << "-" << torsionparam[nts[nt]][j][1] << endl;
+        }
+    }
+    */
+
+    return true;
+}
+
+bool loadbbhbondparameters(string basepath, map<char, map<char, map<int, map<int, BBHydroBondParameters>>>> &stparameter)
+{
+	vector<string> nts = {"A","U","G","C"};
+	string tdir,pdbpath;
+	vector<string>refname;
+	FILE *filein;
+	string oneline_str;
+	string	oneline;	
+	string st;
+	int count;
+	double mean, stdval;
+	string field;
+	string atom1, atom2, atom3;
+	double dhaangle_mean, dhaangle_std;
+	double haaaangle_mean, haaaangle_std;
+    double daaaangle_mean, daaaangle_std;
+    double adlength_mean, adlength_std;
+    double ahlength_mean, ahlength_std;
+	bool flagf;
+
+    for(int nt2=0;nt2<4;nt2++)
+    {
+        ifstream inputFile(basepath+"/hbond_O2'_base_"+nts[nt2]+".txt");
+        if(!inputFile.is_open())
+        {
+            cout<<"Bin info file can not be opened (Backbone hbond parameters)\n"<<endl;
+            return false;
+        }
+
+        while(getline(inputFile, oneline))
+        {
+            stringstream ssbase(oneline);
+            count=0;
+            while (getline(ssbase, field, ','))
+            { 
+                if(count==0) atom1=field; 
+                if(count==1) atom2=field; 
+                if(count==2) atom3=field; 
+                if(count==3) dhaangle_mean=stof(field); 
+                if(count==4) dhaangle_std=stof(field); 
+                if(count==5) adlength_mean=stof(field); 
+                if(count==6) adlength_std=stof(field); 
+                if(count==7) ahlength_mean=stof(field); 
+                if(count==8) ahlength_std=stof(field); 
+                if(count==9) haaaangle_mean=stof(field); 
+                if(count==10) haaaangle_std=stof(field); 
+                if(count==11) daaaangle_mean=stof(field); 
+                if(count==12) daaaangle_std=stof(field); 
+                count+=1;
+            }
+
+            //cout<<nts[nt1][0] << "-" << hydfullatomname2idx[nts[nt1]][atom1] << "-" << hydfullatomname2idx[nts[nt1]][atom2] << "-" << adlength_mean << "-" << adlength_std << "-" << cadangle_mean << "-" << cadangle_std<<endl;
+            for(int nt1=0;nt1<4;nt1++)
+            {
+                stparameter[nts[nt2][0]][nts[nt1][0]][hydfullatomname2idx[nts[nt2]][atom3]][hydfullatomname2idx[nts[nt1]][atom1]].dhaangle_mean = dhaangle_mean;
+                stparameter[nts[nt2][0]][nts[nt1][0]][hydfullatomname2idx[nts[nt2]][atom3]][hydfullatomname2idx[nts[nt1]][atom1]].dhaangle_std = dhaangle_std;
+                stparameter[nts[nt2][0]][nts[nt1][0]][hydfullatomname2idx[nts[nt2]][atom3]][hydfullatomname2idx[nts[nt1]][atom1]].adlength_mean = adlength_mean;
+                stparameter[nts[nt2][0]][nts[nt1][0]][hydfullatomname2idx[nts[nt2]][atom3]][hydfullatomname2idx[nts[nt1]][atom1]].adlength_std = adlength_std;
+                stparameter[nts[nt2][0]][nts[nt1][0]][hydfullatomname2idx[nts[nt2]][atom3]][hydfullatomname2idx[nts[nt1]][atom1]].ahlength_mean = ahlength_mean;
+                stparameter[nts[nt2][0]][nts[nt1][0]][hydfullatomname2idx[nts[nt2]][atom3]][hydfullatomname2idx[nts[nt1]][atom1]].ahlength_std = ahlength_std;
+                stparameter[nts[nt2][0]][nts[nt1][0]][hydfullatomname2idx[nts[nt2]][atom3]][hydfullatomname2idx[nts[nt1]][atom1]].haaaangle_mean = haaaangle_mean;
+                stparameter[nts[nt2][0]][nts[nt1][0]][hydfullatomname2idx[nts[nt2]][atom3]][hydfullatomname2idx[nts[nt1]][atom1]].haaaangle_std = haaaangle_std;
+                stparameter[nts[nt2][0]][nts[nt1][0]][hydfullatomname2idx[nts[nt2]][atom3]][hydfullatomname2idx[nts[nt1]][atom1]].daaaangle_mean = daaaangle_mean;
+                stparameter[nts[nt2][0]][nts[nt1][0]][hydfullatomname2idx[nts[nt2]][atom3]][hydfullatomname2idx[nts[nt1]][atom1]].daaaangle_std = daaaangle_std;
+            
+            /*
+            cout<<
+                stparameter[nts[nt2][0]][nts[nt1][0]][hydfullatomname2idx[nts[nt2]][atom3]][hydfullatomname2idx[nts[nt1]][atom1]].dhaangle_mean << "-"<<
+                stparameter[nts[nt2][0]][nts[nt1][0]][hydfullatomname2idx[nts[nt2]][atom3]][hydfullatomname2idx[nts[nt1]][atom1]].dhaangle_std << "-"<<
+                stparameter[nts[nt2][0]][nts[nt1][0]][hydfullatomname2idx[nts[nt2]][atom3]][hydfullatomname2idx[nts[nt1]][atom1]].adlength_mean << "-"<<
+                stparameter[nts[nt2][0]][nts[nt1][0]][hydfullatomname2idx[nts[nt2]][atom3]][hydfullatomname2idx[nts[nt1]][atom1]].adlength_std << "-"<<
+                stparameter[nts[nt2][0]][nts[nt1][0]][hydfullatomname2idx[nts[nt2]][atom3]][hydfullatomname2idx[nts[nt1]][atom1]].ahlength_mean << "-"<<
+                stparameter[nts[nt2][0]][nts[nt1][0]][hydfullatomname2idx[nts[nt2]][atom3]][hydfullatomname2idx[nts[nt1]][atom1]].ahlength_std << "-"<<
+                stparameter[nts[nt2][0]][nts[nt1][0]][hydfullatomname2idx[nts[nt2]][atom3]][hydfullatomname2idx[nts[nt1]][atom1]].haaaangle_mean << "-"<<
+                stparameter[nts[nt2][0]][nts[nt1][0]][hydfullatomname2idx[nts[nt2]][atom3]][hydfullatomname2idx[nts[nt1]][atom1]].haaaangle_std << "-"<<
+                stparameter[nts[nt2][0]][nts[nt1][0]][hydfullatomname2idx[nts[nt2]][atom3]][hydfullatomname2idx[nts[nt1]][atom1]].daaaangle_mean << "-"<<
+                stparameter[nts[nt2][0]][nts[nt1][0]][hydfullatomname2idx[nts[nt2]][atom3]][hydfullatomname2idx[nts[nt1]][atom1]].daaaangle_std << "-"<<endl;
+            */
+            }
+        }
+        //cout<<"================="<<endl;
+    }
+    //exit(1);
+
+	return true;
+}
 
 
 void loadparameters(string paramdir, ExtParams &extparameters){
@@ -1477,5 +1677,8 @@ void loadparameters(string paramdir, ExtParams &extparameters){
     loadstackparameters(paramdir+"/stacking", extparameters.stackparam);
     loadbpparameters(paramdir+"/basepair", extparameters.bpparam);
     loadbphbondparameters(paramdir+"/basepair_hbond", extparameters.bphbond);
+    loadsugartorsion(paramdir+"/sugar_torsion", extparameters.sugartorsion);
+    loadbbtorsion(paramdir+"/bb_torsion", extparameters.bbtorsion);
+    loadbbhbondparameters(paramdir+"/hbond_o2o4", extparameters.bbhbond);
 }
 

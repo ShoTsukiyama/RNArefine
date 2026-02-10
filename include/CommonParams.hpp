@@ -35,9 +35,10 @@ Ideal bond and pseudobond lengths are taken from the Amber forcefield parameters
 #define GLOBALCUTOFF_SQR GLOBALCUTOFF*GLOBALCUTOFF
 #define HBONDThreshold -1
 #define HBONDADLengThreshold 10
-#define PI_MACRO 4.0 * atan(1.0)
-#define RADDEG PI_MACRO/180.0
-#define DEGRAD 180.0/PI_MACRO
+#define PI_MACRO (4.0 * atan(1.0))
+#define RADDEG (PI_MACRO/180.0)
+#define DEGRAD (180.0 / PI_MACRO)
+#define HBOND_CONST 4.0
 
 #define EPS 1e-7
 #define PI (4.0 * atan(1.0))
@@ -61,6 +62,15 @@ typedef struct HydroBondParameters
 	double dhaangle_mean, dhaangle_std;
 	double hadangle_mean, hadangle_std;
 }HydroBondParameters;
+
+typedef struct BBHydroBondParameters
+{
+    double adlength_mean, adlength_std;
+    double ahlength_mean, ahlength_std;
+	double dhaangle_mean, dhaangle_std;
+    double haaaangle_mean, haaaangle_std;
+    double daaaangle_mean, daaaangle_std;
+}BBHydroBondParameters;
 
 static map<string, vector<string>> full_atoms_pdb={
 	{"  A", {" P  ", " OP1", " OP2", " O5'", " C5'", " C4'", " O4'", " C3'", " O3'", " C2'", " O2'", " C1'", " N9 ", " C8 ", " N7 ", " C5 ", " C6 ", " N6 ", " N1 ", " C2 ", " N3 ", " C4 ", "H5'1", "H5'2", " H4'", " H3'", " H2'", "HO'2", " H1'", "  H8", " H61", " H62", "  H2"}},
@@ -140,6 +150,8 @@ typedef struct ExtParams
 	map<string, vector<vector<double>>> adjangleparam; 
 	map<string, vector<vector<int>>> adjangleparamidx;
     
+    map<string, vector<vector<vector<double>>>> sugartorsion;
+    map<string, vector<vector<double>>> bbtorsion;
     map<string, vector<pair<vector<int>, vector<double>>>> btorsionparam;
 
 	map<string, vector<vector<double>>> hydparam;
@@ -166,6 +178,7 @@ typedef struct ExtParams
     map<int, map<string, map<string, vector<vector<double>>>>> stackparam;
     map<string, map<string, vector<vector<double>>>> bpparam;
     map<char, map<char, map<int, map<int, HydroBondParameters>>>> bphbond;
+    map<char, map<char, map<int, map<int, BBHydroBondParameters>>>> bbhbond;
 }ExtParams;
 
 typedef struct Point3d

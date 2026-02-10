@@ -118,7 +118,8 @@ void MonteCarloSimulation::setbpfragflap(int istart1, int iend1, int istart2, in
 	}
 }
 
-double MonteCarloSimulation::getbasepairenergy(const int &bp_base1, const int &bp_base2, vector<double> &templateenergies, int &templateidx){
+//double MonteCarloSimulation::getbasepairenergy(const int &bp_base1, const int &bp_base2, vector<double> &templateenergies, int &templateidx){
+double MonteCarloSimulation::getbasepairenergy(const int &bp_base1, const int &bp_base2, int &templateidx){
 	int i,j;
 	int atom;
 	int count;
@@ -136,34 +137,21 @@ double MonteCarloSimulation::getbasepairenergy(const int &bp_base1, const int &b
 	base2 = refinestr_temp[bp_base2].aaa;
 
 	/*
-    static map<char, vector<int>> targetatoms={
-		{'A',{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21}},
-        {'C',{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19}},
-        {'G',{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22}},
-        {'U',{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19}}
-	};
-	
-    map<char, vector<int>> targetatoms={
-		{'A',{8, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21}},
-        {'C',{8, 12, 13, 14, 15, 16, 17, 18, 19}},
-        {'G',{8, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22}},
-        {'U',{8, 12, 13, 14, 15, 16, 17, 18, 19}}
-    };
-	*/
-
 	static map<char, vector<int>> targetatoms_sup={
 		{'A',{0,1,2,3,4,5}},
-		{'C',{0,1,2,3,4,5}},
-		{'G',{0,1,2,3,4,5}},
-		{'U',{0,1,2,3,4,5}}
+        {'C',{0,1,2,3,4,5}},
+        {'G',{0,1,2,3,4,5}},
+        {'U',{0,1,2,3,4,5}}
 	};
-
-	static map<char, vector<int>> targetatoms={
-		{'A',{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21}},
-        {'C',{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19}},
-        {'G',{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22}},
-        {'U',{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19}}
+	*/
+	
+	static map<char, vector<int>> targetatoms_sup={
+		{'A',{12,13,14,15,16,17,18,19,20,21}},
+		{'C',{12,13,14,15,16,17,18,19}},
+		{'G',{12,13,14,15,16,17,18,19,20,21,22}},
+		{'U',{12,13,14,15,16,17,18,19}}
 	};
+	
 
 	vector<vector<double> > xyz_list1(targetatoms_sup[base1].size()+targetatoms_sup[base2].size(), vector<double>(3,0));
     vector<vector<double> > xyz_list2(targetatoms_sup[base1].size()+targetatoms_sup[base2].size(), vector<double>(3,0));
@@ -203,8 +191,8 @@ double MonteCarloSimulation::getbasepairenergy(const int &bp_base1, const int &b
 
 		rmsd=0;
 		count=0;
-		for(j=0; j<targetatoms[base1].size();j++){
-			atom=targetatoms[base1][j];
+		for(j=0; j<targetatoms_sup[base1].size();j++){
+			atom=targetatoms_sup[base1][j];
 
 			atom_coord.clear();
 			atom_coord.resize(3, 0.0);
@@ -217,12 +205,12 @@ double MonteCarloSimulation::getbasepairenergy(const int &bp_base1, const int &b
 			vec.y=refinestr_temp[bp_base1].ptv[atom].y-xyztmp[1];
 			vec.z=refinestr_temp[bp_base1].ptv[atom].z-xyztmp[2];
 
-			rmsd+=bf.norm(vec);
+			rmsd+=(vec.x*vec.x+vec.y*vec.y+vec.z*vec.z);
 			count+=1;
 		}
 
-		for(j=0; j<targetatoms[base2].size();j++){
-			atom=targetatoms[base2][j];
+		for(j=0; j<targetatoms_sup[base2].size();j++){
+			atom=targetatoms_sup[base2][j];
 
 			atom_coord.clear();
 			atom_coord.resize(3, 0.0);
@@ -235,19 +223,16 @@ double MonteCarloSimulation::getbasepairenergy(const int &bp_base1, const int &b
 			vec.y=refinestr_temp[bp_base2].ptv[atom].y-xyztmp[1];
 			vec.z=refinestr_temp[bp_base2].ptv[atom].z-xyztmp[2];
 
-			rmsd+=bf.norm(vec);
+			rmsd+=(vec.x*vec.x+vec.y*vec.y+vec.z*vec.z);
 			count+=1;
 		}
-
-		templateenergies.push_back(rmsd);
+		rmsd = sqrt(rmsd/count);
 
 		if(rmsd < minrmsd){
 			templateidx=i;
 			minrmsd=rmsd;
 		}
 	}
-
-	//cout<<minrmsd<<endl;
 
 	return minrmsd;
 }
@@ -270,6 +255,7 @@ bool MonteCarloSimulation::replacebpfrag(int &bp_base1, int &bp_base2, int &sele
 	base1 = refinestr_temp[bp_base1].aaa;
 	base2 = refinestr_temp[bp_base2].aaa;
 
+	/*	
 	static map<char, vector<int>> targetatoms_sup={
 		{'A',{0,1,2,3,4,5}},
 		{'C',{0,1,2,3,4,5}},
@@ -283,18 +269,23 @@ bool MonteCarloSimulation::replacebpfrag(int &bp_base1, int &bp_base2, int &sele
 		{'G',{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22}},
 		{'U',{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19}}
 	};
-	
-	/*
-	static map<char, vector<int>> targetatoms={
-		{'A',{12, 13, 14, 15, 16, 17, 18, 19, 20, 21}},
-		{'C',{12, 13, 14, 15, 16, 17, 18, 19}},
-		{'G',{12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22}},
-		{'U',{12, 13, 14, 15, 16, 17, 18, 19}}
-	};
 	*/
-
-	//int selected_fragidx = int(Random()*BPTEMPLATE[base1][base2].size());
-
+	
+	static map<char, vector<int>> targetatoms_sup={
+		{'A',{12,13,14,15,16,17,18,19,20,21}},
+		{'C',{12,13,14,15,16,17,18,19}},
+		{'G',{12,13,14,15,16,17,18,19,20,21,22}},
+		{'U',{12,13,14,15,16,17,18,19}}
+	};
+	
+	static map<char, vector<int>> targetatoms={
+		{'A',{12,13,14,15,16,17,18,19,20,21}},
+		{'C',{12,13,14,15,16,17,18,19}},
+		{'G',{12,13,14,15,16,17,18,19,20,21,22}},
+		{'U',{12,13,14,15,16,17,18,19}}
+	};
+	
+	
 	vector<vector<double>> xyz_list1(targetatoms_sup[base1].size()+targetatoms_sup[base2].size(), vector<double>(3,0));
     vector<vector<double>> xyz_list2(targetatoms_sup[base1].size()+targetatoms_sup[base2].size(), vector<double>(3,0));
 
@@ -339,7 +330,6 @@ bool MonteCarloSimulation::replacebpfrag(int &bp_base1, int &bp_base2, int &sele
 		refinestr_temp[bp_base1].ptv[atom].x = xyztmp[0];
 		refinestr_temp[bp_base1].ptv[atom].y = xyztmp[1];
 		refinestr_temp[bp_base1].ptv[atom].z = xyztmp[2];
-
 	}
 
 	for(j=0; j<targetatoms[base2].size();j++){
@@ -355,7 +345,6 @@ bool MonteCarloSimulation::replacebpfrag(int &bp_base1, int &bp_base2, int &sele
 		refinestr_temp[bp_base2].ptv[atom].x = xyztmp[0];
 		refinestr_temp[bp_base2].ptv[atom].y = xyztmp[1];
 		refinestr_temp[bp_base2].ptv[atom].z = xyztmp[2];
-
 	}
 
 	return true;
@@ -489,9 +478,10 @@ bool MonteCarloSimulation::fmovementbpfrag(double oldenergy, double &newenergy)
 	//cout<<bp_base1 << "-" << bp_base2 << "-" << base1 << "-" << base2<<endl;
 	//cout<<"~~~~~~~~~~~~~~"<<endl;
 
-	vector<double> templateenergies;
+	//vector<double> templateenergies;
 	int templateidx;
-	double minrmsd = getbasepairenergy(bp_base1, bp_base2, templateenergies, templateidx);
+	//double minrmsd = getbasepairenergy(bp_base1, bp_base2, templateenergies, templateidx);
+	double minrmsd = getbasepairenergy(bp_base1, bp_base2, templateidx);
 
 	cout<<"Base pair-" << minrmsd << "-" << bpscore <<endl;
 
@@ -605,7 +595,7 @@ bool MonteCarloSimulation::fmovementbpfrag(double oldenergy, double &newenergy)
 
 	//basepairlist.push_back({bp_base1, bp_base2});
 
-	MonteCarloSimulation::MCfragmentoptimization(initstructure, bindingmap, moveresidues, contactmap, stackingmap, basepairlist, noncbasepairlist, basepairscorelist, noncbasepairscorelist);
+	MonteCarloSimulation::MCfragmentoptimization(initstructure, bindingmap, moveresidues, contactmap, stackingmap, basepairlist, noncbasepairlist, basepairscorelist, noncbasepairscorelist, true);
 
 	
 	int istart1=bp_base1-1;

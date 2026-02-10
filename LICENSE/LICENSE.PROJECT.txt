@@ -1,0 +1,10 @@
+Project License Overview
+
+Original contributions in this project, unless otherwise stated, are licensed
+under the GNU General Public License (GPL), version 3.
+
+This project includes modified and/or derived code based on:
+- ESM (Cambrian Open License)
+- QRNAS (GNU General Public License)
+
+See LICENSE/ for the full license texts and attribution details.

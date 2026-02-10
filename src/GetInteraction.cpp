@@ -67,7 +67,7 @@ void filter_bp(vector<pair<double,vector<size_t> > >&bp_vec)
     
     for (bp=0;bp<bp_idx_vec.size();bp++)
     {
-        if (-bp_idx_vec[bp].first<0.5) break;
+        //if (-bp_idx_vec[bp].first<0.5) break;
         if (find(paired_res_vec.begin(), paired_res_vec.end(), 
             pair<size_t,size_t>(bp_vec[bp_idx_vec[bp].second].second[0],
             bp_vec[bp_idx_vec[bp].second].second[1]))!=paired_res_vec.end())
@@ -1501,7 +1501,7 @@ bool loadST(string stpath, string seq, map<string, int> &chainstr2chainidx, map<
             pair<double,vector<size_t> > stack_vec_temp;
             
             if(idx1 < idx2){
-                stack_vec_temp.first = exp01(sc, 10.0);
+                stack_vec_temp.first = exp01(sc, 2.0);
                 stack_vec_temp.second.resize(5,0);
 
                 stack_vec_temp.second[0]=chain1idx;
@@ -1509,7 +1509,7 @@ bool loadST(string stpath, string seq, map<string, int> &chainstr2chainidx, map<
                 stack_vec_temp.second[2]=chain2idx;
                 stack_vec_temp.second[3]=idx2;
             }else{
-                stack_vec_temp.first = exp01(sc, 10.0);
+                stack_vec_temp.first = exp01(sc, 2.0);
                 stack_vec_temp.second.resize(5,0);
 
                 stack_vec_temp.second[0]=chain2idx;
@@ -1633,7 +1633,7 @@ bool loadBP(string bppath, string seq, map<string, int> &chainstr2chainidx, map<
             pair<double,vector<size_t>> bp_vec_temp;
             bool canonicaflag=false;
             if(idx1 < idx2){
-                bp_vec_temp.first = exp01(sc, 10.0);
+                bp_vec_temp.first = exp01(sc, 2.0);
                 bp_vec_temp.second.resize(5, 0.0);
 
                 bp_vec_temp.second[0] = chain1idx;
@@ -1643,6 +1643,8 @@ bool loadBP(string bppath, string seq, map<string, int> &chainstr2chainidx, map<
 
                 base1 = seq[bp_vec_temp.second[1]];
                 base2 = seq[bp_vec_temp.second[3]];
+
+                //cout<<idx1 << "-" << idx2 << "-" << base1 << "-" << base2<<endl;
 
                 //cout<<bp_vec_temp.second[0] << "-" << bp_vec_temp.second[1] << "-" << bp_vec_temp.second[2] << "-" << bp_vec_temp.second[3] << "-" << base1 << "-" << base2 << "-" << bp_vec_temp.first<<endl;
 
@@ -1661,7 +1663,7 @@ bool loadBP(string bppath, string seq, map<string, int> &chainstr2chainidx, map<
                     //cout<<bp_vec_temp.second[1] << "-" << bp_vec_temp.second[3]<<endl;
                 //}
             }else{
-                bp_vec_temp.first = exp01(sc, 10.0);
+                bp_vec_temp.first = exp01(sc, 2.0);
                 bp_vec_temp.second.resize(5, 0.0);
 
                 bp_vec_temp.second[0] = chain2idx;
@@ -1671,6 +1673,8 @@ bool loadBP(string bppath, string seq, map<string, int> &chainstr2chainidx, map<
 
                 base1 = seq[bp_vec_temp.second[1]];
                 base2 = seq[bp_vec_temp.second[3]];
+
+                //cout<<idx2 << "-" << idx1 << "-" << base1 << "-" << base2<<endl;
 
                 //cout<<bp_vec_temp.second[0] << "-" << bp_vec_temp.second[1] << "-" << bp_vec_temp.second[2] << "-" << bp_vec_temp.second[3] << "-" << base1 << "-" << base2 << "-" << bp_vec_temp.first<<endl;
 
@@ -1985,6 +1989,52 @@ void getstmap(const vector<pair<double,vector<size_t>>> &stack_vec, vector<vecto
         stackmap[base1][base2].second = stack_vec[i].first;
         stackmap[base2][base1].second = stack_vec[i].first;
     }
+}
+
+void get_edge_loop(vector<pair<double,vector<size_t>>> &bp_vec, vector<pair<double,vector<size_t>>> &noncbp_vec, int numbb, vector<double> &nt_weight)
+{
+    int st, ed;
+    int idx1, idx2;
+    st = numbb;
+    ed = 0;
+
+    nt_weight.resize(numbb, 1.0);
+    if(bp_vec.size() > 0){
+        for(int i=0;i<bp_vec.size();i++){
+            idx1 = bp_vec[i].second[1];
+            idx2 = bp_vec[i].second[3];
+
+            //nt_weight[idx1] = 1;
+            //nt_weight[idx2] = 1;
+
+            //if(bp_vec[i].first > 0.5)
+            //{
+            if(st > idx1) st = idx1;
+            if(st > idx2) st = idx2;
+            if(ed < idx1) ed = idx1;
+            if(ed < idx2) ed = idx2;
+            //}else{
+                //cout<<idx1 << "-" << idx2<<endl;
+            //}
+        }
+
+        for(int i=0;i<st;i++){
+            //cout<<i<<endl;
+            nt_weight[i]=0.1;
+        }
+
+        for(int i=numbb-1;i>ed;i--){
+            //cout<<i<<endl;
+            nt_weight[i]=0.1;
+        }
+
+    }
+
+    //for(int i=0;i<nt_weight.size();i++){
+        //cout<<i << "-" << nt_weight[i]<<endl;
+    //}
+
+    //exit(1);
 }
 
 

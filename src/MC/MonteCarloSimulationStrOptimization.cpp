@@ -77,7 +77,7 @@ void MonteCarloSimulation::MCsetinitpairobj(const map<int, vector<Point3s>> &ini
                     if(m < (*MCinitdistflag)[i][j].size()){
                         if((*MCinitdistflag)[i][j][k]){
                             //InitPairobj initdistobjone= InitPairobj::create(&refinestr_temp[i].ptv[atom1], &refinestr_temp[j].ptv[atom2], &gradient[i][atom1], &gradient[j][atom2], (*MCinitdistmap)[i][j][m], (*MCinitdistscore)[i][j]*K);
-                            InitPairobj initdistobjone= InitPairobj::create(&refinestr_temp[i].ptv[atom1], &refinestr_temp[j].ptv[atom2], &gradient[i][atom1], &gradient[j][atom2], (*MCinitdistmap)[i][j][k], K);
+                            InitPairobj initdistobjone= InitPairobj::create(&refinestr_temp[i].ptv[atom1], &refinestr_temp[j].ptv[atom2], &gradient[i][atom1], &gradient[j][atom2], (*MCinitdistmap)[i][j][k],  (*MCinitdistscore)[i][j]*K);
                             binitdistobj.push_back(initdistobjone);
                         }
                     }
@@ -363,6 +363,79 @@ void MonteCarloSimulation::MCsetangleobj(const vector<vector<int>> &bindingmap, 
     //exit(1);
 }
 
+void MonteCarloSimulation::MCsetdangleobj(const vector<vector<int>> &bindingmap, vector<vector<Point3s>> &gradient, double K, list<BondDihedralobj> &bangleobj)
+{
+    int i, j, idx;
+    int res1, res2, res3, res4;
+	int atom1, atom2, atom3, atom4;
+    int pos1, pos2, pos3, pos4;
+    double ideal, rotn;
+    char base;
+    char base1, base2;
+    int minfragidx;
+    double minrmsd;
+
+    vector<vector<int>> torsion_idx_list = {{3,4,5,0}, {4,5,0,1}, {5,0,1,2}, {0,1,2,3}, {1,2,3,4}};
+    vector<vector<int>> torsion_rel_pos = {{0,0,0,1}, {0,0,1,1}, {0,1,1,1}, {1,1,1,1}, {1,1,1,1}};
+
+    for(i=0;i<numbb-1;i++)
+	{
+        for(j=0;j<torsion_idx_list.size();j++){
+            pos1 = i + torsion_rel_pos[j][0]; pos2 = i + torsion_rel_pos[j][1]; pos3 = i + torsion_rel_pos[j][2]; pos4 = i + torsion_rel_pos[j][3];
+            base =  refinestr_temp[i].aaa;
+
+            if((bindingmap[pos1][pos2] == 1) || (bindingmap[pos2][pos3] == 1) || (bindingmap[pos3][pos4] == 1) || (bindingmap[pos1][pos2] == 2) || (bindingmap[pos2][pos3] == 2) || (bindingmap[pos3][pos4] == 2)){
+                atom1 = torsion_idx_list[j][0]; atom2 = torsion_idx_list[j][1]; atom3 = torsion_idx_list[j][2]; atom4 = torsion_idx_list[j][3];
+
+                //cout<<pos1 << "-" << pos2 << "-" << pos3 << "-" << pos4<<endl;
+                //cout<<atom1 << "-" << atom2 << "-" << atom3 << "-" << atom4<<endl;
+
+                BondDihedralobj dihedralobjone1 = BondDihedralobj::create(&refinestr_temp[pos1].ptv[atom1], &refinestr_temp[pos2].ptv[atom2], &refinestr_temp[pos3].ptv[atom3], &refinestr_temp[pos4].ptv[atom4], &gradient[pos1][atom1], &gradient[pos2][atom2], &gradient[pos3][atom3], &gradient[pos4][atom4], K, MCBBTORSION[base][j][0], MCBBTORSION[base][j][1]);
+                bangleobj.push_back(dihedralobjone1);
+
+            }
+        }
+    }
+}
+
+void MonteCarloSimulation::MCsetdsugarangleobj(const vector<vector<int>> &bindingmap, vector<vector<Point3s>> &gradient, double K, list<MultiBondDihedralobj> &multibangleobj)
+{
+    vector<int> sugaratomidx = {2,3,4,5,7,8,6,1,12,13,0};
+    vector<int> resrelpos = {0,0,0,0,0,0,0,0,0,0,1};
+
+    for(int i=0;i<numbb-1;i++)
+	{
+		char base = refinestr_temp[i].aaa;
+
+        vector<Point3s*> AtomPtrs;
+        vector<Point3s*> Atomgrad;
+        vector<vector<vector<double*>>> ideals;
+
+        for(int j=0;j<sugaratomidx.size();j++){
+            int k = sugaratomidx[j];
+            int pos = i + resrelpos[j];
+            Point3s* respt = &refinestr_temp[pos].ptv[k];
+            AtomPtrs.push_back(respt);
+
+            Point3s* resgradpt = &gradient[pos][k];
+            Atomgrad.push_back(resgradpt);
+        }
+
+        ideals.resize(2);
+        for(int j=0;j<2;j++){
+            for(int k=0;k<9;k++){
+                double* idealpt1 = &MCSUGARTORSION[base][j][k][0];
+                double* idealpt2 = &MCSUGARTORSION[base][j][k][1];
+                ideals[j].push_back({idealpt1, idealpt2});
+            }
+        }
+
+        MultiBondDihedralobj multibangleobjone = MultiBondDihedralobj(AtomPtrs, Atomgrad, ideals, K);
+        multibangleobj.push_back(multibangleobjone);
+
+    }
+}
+
 void MonteCarloSimulation::MCstack_superimpose(int res1, int res2, char base1, char base2, const int &sttype, double &rmsd, const int &order, const int &tmpidx)
 {
     int i,j;
@@ -398,56 +471,6 @@ void MonteCarloSimulation::MCstack_superimpose(int res1, int res2, char base1, c
         base1_temp = 1;
         base2_temp = 0;
     }
-    
-    /*
-    vector<vector<double> > xyz_list1(targetatoms[base1].size(), vector<double>(3,0));
-    vector<vector<double> > xyz_list2(targetatoms[base1].size(), vector<double>(3,0));
-    vector<vector<double> > xyz_list3(targetatoms[base2].size(), vector<double>(3,0));
-
-    if(order == 0){
-        base1_temp = 0;
-        base2_temp = 1;
-    }else if(order == 1){
-        base1_temp = 1;
-        base2_temp = 0;
-    }
-
-    count = 0;
-    for(j=0; j<targetatoms[base1].size();j++){
-        atom=targetatoms[base1][j];
-        xyz_list1[count][0]=refinestr_temp[res1].ptv[atom].x;
-        xyz_list1[count][1]=refinestr_temp[res1].ptv[atom].y;
-        xyz_list1[count][2]=refinestr_temp[res1].ptv[atom].z;
-
-        xyz_list2[count][0]=STACKTEMPLATE[sttype][base1][base2][tmpidx][base1_temp].ptv[atom].x;
-        xyz_list2[count][1]=STACKTEMPLATE[sttype][base1][base2][tmpidx][base1_temp].ptv[atom].y;
-        xyz_list2[count][2]=STACKTEMPLATE[sttype][base1][base2][tmpidx][base1_temp].ptv[atom].z;
-
-        count+=1;
-    }
-
-    bf.RotateCoor(xyz_list1,xyz_list2,RotMatix,TranVect);
-
-    rmsd=0;
-	count=0;
-    for(j=0; j<targetatoms[base2].size();j++){
-        atom=targetatoms[base2][j];
-
-        xyz_list3[count][0]=STACKTEMPLATE[sttype][base1][base2][tmpidx][base2_temp].ptv[atom].x;
-        xyz_list3[count][1]=STACKTEMPLATE[sttype][base1][base2][tmpidx][base2_temp].ptv[atom].y;
-        xyz_list3[count][2]=STACKTEMPLATE[sttype][base1][base2][tmpidx][base2_temp].ptv[atom].z;
-
-        bf.Transform(xyz_list3[count],RotMatix,TranVect,xyztmp);
-
-        vec.x=refinestr_temp[res2].ptv[atom].x-xyztmp[0];
-        vec.y=refinestr_temp[res2].ptv[atom].y-xyztmp[1];
-        vec.z=refinestr_temp[res2].ptv[atom].z-xyztmp[2];
-
-        rmsd+=bf.norm(vec);
-
-        count+=1;
-    }
-    */
 
     vector<vector<double> > xyz_list1(targetatoms[base1].size()+targetatoms[base2].size(), vector<double>(3,0));
     vector<vector<double> > xyz_list2(targetatoms[base1].size()+targetatoms[base2].size(), vector<double>(3,0));
@@ -490,7 +513,7 @@ void MonteCarloSimulation::MCstack_superimpose(int res1, int res2, char base1, c
         vec.y=refinestr_temp[res1].ptv[atom].y-xyztmp[1];
         vec.z=refinestr_temp[res1].ptv[atom].z-xyztmp[2];
 
-        rmsd+=bf.norm(vec);
+        rmsd+=(vec.x*vec.x+vec.y*vec.y+vec.z*vec.z);
         count+=1;
     }
 
@@ -502,12 +525,13 @@ void MonteCarloSimulation::MCstack_superimpose(int res1, int res2, char base1, c
         vec.y=refinestr_temp[res2].ptv[atom].y-xyztmp[1];
         vec.z=refinestr_temp[res2].ptv[atom].z-xyztmp[2];
 
-        rmsd+=bf.norm(vec);
+        rmsd+=(vec.x*vec.x+vec.y*vec.y+vec.z*vec.z);
         count+=1;
     }
+    rmsd = sqrt(rmsd/count);
 }
 
-void MonteCarloSimulation::MCselectstackfrag(vector<vector<Point3s>> &gradient, int res1, int res2, const int &sttype, int stidx, vector<vector<int>> &indices, vector<vector<int>> &orders, double K, list<Stackingobj> &stackobj)
+void MonteCarloSimulation::MCselectstackfrag(vector<vector<Point3s>> &gradient, int res1, int res2, const int &sttype, int stidx, double K, list<Stackingobj> &stackobj)
 {
 	int i,j;
 	int atom, atom1, atom2;
@@ -522,6 +546,8 @@ void MonteCarloSimulation::MCselectstackfrag(vector<vector<Point3s>> &gradient, 
 
     base1 = refinestr_temp[res1].aaa;
     base2 = refinestr_temp[res2].aaa;
+    vector<int> indices;
+    vector<int> orders;
     
     /*
 	static map<char, vector<int>> targetatoms={
@@ -591,8 +617,8 @@ void MonteCarloSimulation::MCselectstackfrag(vector<vector<Point3s>> &gradient, 
 	};
     */
 
-    vector<vector<Residueatoms>> stacktemplate=STACKTEMPLATE[sttype][base1][base2];
-    vector<vector<vector<double>>> stackdistancemap=STACKDISTMAP[sttype][base1][base2];
+    vector<vector<Residueatoms>> &stacktemplate=STACKTEMPLATE[sttype][base1][base2];
+    vector<vector<vector<double>>> &stackdistancemap=STACKDISTMAP[sttype][base1][base2];
 
     vector<double> rmsds;
     if(sttype == 0 && base1 == base2) rmsds.resize(stacktemplate.size()*2, 0.0);
@@ -622,30 +648,30 @@ void MonteCarloSimulation::MCselectstackfrag(vector<vector<Point3s>> &gradient, 
 		}
 	}
 
-    indices[stidx].resize(rmsds.size());
-    orders[stidx].resize(rmsds.size());
-    for (int i = 0; i < rmsds.size(); ++i) indices[stidx][i] = i;
+    indices.resize(rmsds.size());
+    orders.resize(rmsds.size());
+    for (int i = 0; i < rmsds.size(); ++i) indices[i] = i;
 
-    sort(indices[stidx].begin(), indices[stidx].end(), [&rmsds](int i1, int i2) {
+    sort(indices.begin(), indices.end(), [&rmsds](int i1, int i2) {
         return rmsds[i1] < rmsds[i2];
     });
 
-    for(i=0;i<indices[stidx].size();i++){
+    for(i=0;i<indices.size();i++){
         //cout<<i << "-" << indices[i] << "-" << rmsds[indices[i]]<<endl;
 
-        if(indices[stidx][i] >= STACKTEMPLATE[sttype][base1][base2].size()){
-            indices[stidx][i] = indices[stidx][i] - STACKTEMPLATE[sttype][base1][base2].size();
-            orders[stidx][i] = 1;
+        if(indices[i] >= STACKTEMPLATE[sttype][base1][base2].size()){
+            indices[i] = indices[i] - STACKTEMPLATE[sttype][base1][base2].size();
+            orders[i] = 1;
         }else{
-            orders[stidx][i] = 0;
+            orders[i] = 0;
         }
     }
 
     //StackTemplateobj2MC stackobjone(refinestr_temp[res1].ptv, refinestr_temp[res2].ptv, &gradient[res1], &gradient[res2], refinestr_temp[res1].aaa, refinestr_temp[res2].aaa, &STACKTEMPLATE[sttype][base1][base2], &indices[stidx], &orders[stidx], 5, K);
     //stackobj.push_back(stackobjone);
 
-    int template_idx = indices[stidx][0];
-    int template_order = orders[stidx][0];
+    int template_idx = indices[0];
+    int template_order = orders[0];
 
     //cout<<res1 << "-" << res2 << "-" << template_idx << "-" << rmsds[template_idx] << "-" << sttype << "-" << base1 << "-" << base2<<endl;
 
@@ -686,7 +712,7 @@ void MonteCarloSimulation::MCselectstackfrag(vector<vector<Point3s>> &gradient, 
     }
 }
 
-void MonteCarloSimulation::MCsetstackingobj(vector<vector<Point3s>> &gradient, const vector<vector<double>> &stackmap, vector<vector<int>> &indices, vector<vector<int>> &orders, double K, list<Stackingobj> &stackobj)
+void MonteCarloSimulation::MCsetstackingobj(vector<vector<Point3s>> &gradient, const vector<vector<double>> &stackmap, double K, list<Stackingobj> &stackobj)
 {
 	int i,j,k;
 	int res1, res2;
@@ -704,9 +730,6 @@ void MonteCarloSimulation::MCsetstackingobj(vector<vector<Point3s>> &gradient, c
         }
     }
 
-    indices.resize(stnum);
-    orders.resize(stnum);
-
     int count=0;
 
     for(i=0;i<refinestr_temp.size();i++){
@@ -719,9 +742,9 @@ void MonteCarloSimulation::MCsetstackingobj(vector<vector<Point3s>> &gradient, c
             base2 = refinestr_temp[res2].aaa;
             if(stackmap[res1][res2] > 0){
                 if(i+1 == j){
-                    MCselectstackfrag(gradient, res1, res2, 1, count, indices, orders, stackmap[res1][res2]*K, stackobj);
+                    MCselectstackfrag(gradient, res1, res2, 1, count, stackmap[res1][res2]*K, stackobj);
                 }else{
-                    MCselectstackfrag(gradient, res1, res2, 0, count, indices, orders, stackmap[res1][res2]*K, stackobj);
+                    MCselectstackfrag(gradient, res1, res2, 0, count, stackmap[res1][res2]*K, stackobj);
                     
                 }
 
@@ -808,7 +831,7 @@ void MonteCarloSimulation::MCsetstackinggeoobj(vector<vector<Point3s>> &gradient
 
 void MonteCarloSimulation::MCbp_superimpose(int res1, int res2, char base1, char base2, double &rmsd, const int &tmpidx)
 {
-    int i,j;
+    int j;
     int count;
     vector<vector<double>> RotMatix;
     vector<double> TranVect;
@@ -817,12 +840,12 @@ void MonteCarloSimulation::MCbp_superimpose(int res1, int res2, char base1, char
     BasicFunc bf;
     Point3s vec;
 
-    map<char, vector<int>> targetatoms={
-        {'A',{12, 13, 14, 15, 16, 17, 18, 19, 20, 21}},
-        {'C',{12, 13, 14, 15, 16, 17, 18, 19}},
-        {'G',{12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22}},
-        {'U',{12, 13, 14, 15, 16, 17, 18, 19}}
-    };
+    static map<char, vector<int>> targetatoms={
+	    {'A',{0,1,2,3,4,5,6,7,8,9,11,12,13,14,15,16,17,18,19,20,21}},
+        {'C',{0,1,2,3,4,5,6,7,8,9,11,12,13,14,15,16,17,18,19}},
+        {'G',{0,1,2,3,4,5,6,7,8,9,11,12,13,14,15,16,17,18,19,20,21,22}},
+        {'U',{0,1,2,3,4,5,6,7,8,9,11,12,13,14,15,16,17,18,19}}
+	};
 
     vector<vector<double> > xyz_list1(targetatoms[base1].size()+targetatoms[base2].size(), vector<double>(3,0));
     vector<vector<double> > xyz_list2(targetatoms[base1].size()+targetatoms[base2].size(), vector<double>(3,0));
@@ -833,6 +856,23 @@ void MonteCarloSimulation::MCbp_superimpose(int res1, int res2, char base1, char
         xyz_list1[count][0]=refinestr_temp[res1].ptv[atom].x;
         xyz_list1[count][1]=refinestr_temp[res1].ptv[atom].y;
         xyz_list1[count][2]=refinestr_temp[res1].ptv[atom].z;
+        count+=1;
+    }
+
+    for(j=0; j<targetatoms[base2].size();j++){
+        atom=targetatoms[base2][j];
+        xyz_list1[count][0]=refinestr_temp[res2].ptv[atom].x;
+        xyz_list1[count][1]=refinestr_temp[res2].ptv[atom].y;
+        xyz_list1[count][2]=refinestr_temp[res2].ptv[atom].z;
+        count+=1;
+    }
+
+    count = 0;
+    for(j=0; j<targetatoms[base1].size();j++){
+        atom=targetatoms[base1][j];
+        //xyz_list1[count][0]=refinestr_temp[res1].ptv[atom].x;
+        //xyz_list1[count][1]=refinestr_temp[res1].ptv[atom].y;
+        //xyz_list1[count][2]=refinestr_temp[res1].ptv[atom].z;
 
         xyz_list2[count][0]=BPTEMPLATE[base1][base2][tmpidx][0].ptv[atom].x;
         xyz_list2[count][1]=BPTEMPLATE[base1][base2][tmpidx][0].ptv[atom].y;
@@ -843,9 +883,9 @@ void MonteCarloSimulation::MCbp_superimpose(int res1, int res2, char base1, char
 
     for(j=0; j<targetatoms[base2].size();j++){
         atom=targetatoms[base2][j];
-        xyz_list1[count][0]=refinestr_temp[res2].ptv[atom].x;
-        xyz_list1[count][1]=refinestr_temp[res2].ptv[atom].y;
-        xyz_list1[count][2]=refinestr_temp[res2].ptv[atom].z;
+        //xyz_list1[count][0]=refinestr_temp[res2].ptv[atom].x;
+        //xyz_list1[count][1]=refinestr_temp[res2].ptv[atom].y;
+        //xyz_list1[count][2]=refinestr_temp[res2].ptv[atom].z;
 
         xyz_list2[count][0]=BPTEMPLATE[base1][base2][tmpidx][1].ptv[atom].x;
         xyz_list2[count][1]=BPTEMPLATE[base1][base2][tmpidx][1].ptv[atom].y;
@@ -859,30 +899,31 @@ void MonteCarloSimulation::MCbp_superimpose(int res1, int res2, char base1, char
     rmsd=0;
     count=0;
     for(j=0; j<targetatoms[base1].size();j++){
-        atom=targetatoms[base1][j];
+        //atom=targetatoms[base1][j];
         bf.Transform(xyz_list2[count],RotMatix,TranVect,xyztmp);
-        vec.x=refinestr_temp[res1].ptv[atom].x-xyztmp[0];
-        vec.y=refinestr_temp[res1].ptv[atom].y-xyztmp[1];
-        vec.z=refinestr_temp[res1].ptv[atom].z-xyztmp[2];
+        vec.x=xyz_list1[count][0]-xyztmp[0];
+        vec.y=xyz_list1[count][1]-xyztmp[1];
+        vec.z=xyz_list1[count][2]-xyztmp[2];
 
-        rmsd+=bf.norm(vec);
+        rmsd+=(vec.x*vec.x+vec.y*vec.y+vec.z*vec.z);
         count+=1;
     }
 
     for(j=0; j<targetatoms[base2].size();j++){
-        atom=targetatoms[base2][j];
+        //atom=targetatoms[base2][j];
         bf.Transform(xyz_list2[count],RotMatix,TranVect,xyztmp);
 
-        vec.x=refinestr_temp[res2].ptv[atom].x-xyztmp[0];
-        vec.y=refinestr_temp[res2].ptv[atom].y-xyztmp[1];
-        vec.z=refinestr_temp[res2].ptv[atom].z-xyztmp[2];
+        vec.x=xyz_list1[count][0]-xyztmp[0];
+        vec.y=xyz_list1[count][1]-xyztmp[1];
+        vec.z=xyz_list1[count][2]-xyztmp[2];
 
-        rmsd+=bf.norm(vec);
+        rmsd+=(vec.x*vec.x+vec.y*vec.y+vec.z*vec.z);
         count+=1;
     }
+    rmsd = sqrt(rmsd/count);
 }
 
-void MonteCarloSimulation::MCselectbpfrag(vector<vector<Point3s>> &gradient, int res1, int res2, int bpidx, vector<vector<int>> &indices, double K, list<BPdistobj> &bpdistobj)
+void MonteCarloSimulation::MCselectbpfrag(vector<vector<Point3s>> &gradient, int res1, int res2, double K, list<BPdistobj> &bpdistobj)
 {
 	int i,j;
 	int atom, atom1, atom2;
@@ -894,20 +935,30 @@ void MonteCarloSimulation::MCselectbpfrag(vector<vector<Point3s>> &gradient, int
 	Point3s vec;
 	BasicFunc bf;
     char base1, base2;
+    int template_idx=-1;
+    double minrmsd=1e8;
 
     base1 = refinestr_temp[res1].aaa;
     base2 = refinestr_temp[res2].aaa;
 
-
+    /*
     static map<char, vector<int>> targetatoms_dist={
 	    {'A',{12, 13, 14, 15, 16, 17, 18, 19, 21}},
         {'C',{12, 13, 14, 15, 16, 17}},
         {'G',{12, 13, 14, 15, 16, 17, 18, 19, 20}},
         {'U',{12, 13, 14, 15, 16, 17}}
     };
+    */
 
-    vector<vector<Residueatoms>> bptemplate=BPTEMPLATE[base1][base2];
-    vector<vector<vector<double>>> bpdistancemap=BPDISTMAP[base1][base2];
+    static map<char, vector<int>> targetatoms_dist={
+	    {'A',{12, 13, 14}},
+        {'C',{12, 13, 14}},
+        {'G',{12, 13, 14}},
+        {'U',{12, 13, 14}}
+    };
+
+    vector<vector<Residueatoms>> &bptemplate=BPTEMPLATE[base1][base2];
+    vector<vector<vector<double>>> &bpdistancemap=BPDISTMAP[base1][base2];
 
     vector<double> rmsds;
     rmsds.resize(bptemplate.size(), 0.0);
@@ -917,17 +968,26 @@ void MonteCarloSimulation::MCselectbpfrag(vector<vector<Point3s>> &gradient, int
         rmsd=0;
 		count=0;
         MCbp_superimpose(res1, res2, base1, base2, rmsd, i);
-        rmsds[i]=rmsd;
+        //rmsds[i]=rmsd;
+
+        if(minrmsd > rmsd){
+            minrmsd = rmsd;
+            template_idx = i;
+        }
 	}
 
-    indices[bpidx].resize(rmsds.size());
-    for (int i = 0; i < rmsds.size(); ++i) indices[bpidx][i] = i;
+    if(template_idx == -1) {
+        return;
+    }
 
-    sort(indices[bpidx].begin(), indices[bpidx].end(), [&rmsds](int i1, int i2) {
-        return rmsds[i1] < rmsds[i2];
-    });
+    //indices[bpidx].resize(rmsds.size());
+    //for (int i = 0; i < rmsds.size(); ++i) indices[bpidx][i] = i;
 
-    int template_idx = indices[bpidx][0];
+    //sort(indices[bpidx].begin(), indices[bpidx].end(), [&rmsds](int i1, int i2) {
+        //return rmsds[i1] < rmsds[i2];
+    //});
+
+    //int template_idx = indices[bpidx][0];
 
     for(int i=0;i<targetatoms_dist[base1].size();i++){
         atom1=targetatoms_dist[base1][i];
@@ -938,24 +998,23 @@ void MonteCarloSimulation::MCselectbpfrag(vector<vector<Point3s>> &gradient, int
             //double dy = refinestr_temp[res1].ptv[atom1].y - refinestr_temp[res2].ptv[atom2].y;
             //double dz = refinestr_temp[res1].ptv[atom1].z - refinestr_temp[res2].ptv[atom2].z;
             //double length = sqrt(dx*dx + dy*dy+ dz*dz);
-
             BPdistobj bpdistobjone(&refinestr_temp[res1].ptv[atom1], &refinestr_temp[res2].ptv[atom2], &gradient[res1][atom1], &gradient[res2][atom2], bpdistancemap[template_idx][atom1][atom2], K);
             bpdistobj.push_back(bpdistobjone);
         }
     }
 }
 
-void MonteCarloSimulation::MCsetbpdistobj(vector<vector<Point3s>> &gradient, const vector<vector<int>> &basepairlist, vector<vector<int>> &indices, double K, list<BPdistobj> &bpdistobj)
+void MonteCarloSimulation::MCsetbpdistobj(vector<vector<Point3s>> &gradient, const vector<vector<int>> &basepairlist, const vector<double> &basepairscorelist, double K, list<BPdistobj> &bpdistobj)
 {
 	int i,j,k;
 	int res1, res2;
 	char base1, base2;
     int minfragidx; 
 
-    int bpnum=0;
-    for(int i=0;i<basepairlist.size();i++) bpnum+=1;
+    //int bpnum=0;
+    //for(int i=0;i<basepairlist.size();i++) bpnum+=1;
+    //indices.resize(bpnum);
 
-    indices.resize(bpnum);
     for(int i=0;i<basepairlist.size();i++){
         res1=basepairlist[i][0];
         res2=basepairlist[i][1];
@@ -963,8 +1022,7 @@ void MonteCarloSimulation::MCsetbpdistobj(vector<vector<Point3s>> &gradient, con
         base1 = refinestr_temp[res1].aaa;
         base2 = refinestr_temp[res2].aaa;
 
-        MCselectbpfrag(gradient, res1, res2, i, indices, K, bpdistobj);
-
+        MCselectbpfrag(gradient, res1, res2, K*basepairscorelist[i], bpdistobj);
     }
 }
 
@@ -1015,9 +1073,10 @@ void MonteCarloSimulation::MCnt_superimpose(int res, char base, double &rmsd, co
         vec.y=refinestr_temp[res].ptv[atom].y-xyztmp[1];
         vec.z=refinestr_temp[res].ptv[atom].z-xyztmp[2];
 
-        rmsd+=bf.norm(vec);
+        rmsd+=(vec.x*vec.x+vec.y*vec.y+vec.z*vec.z);
         count+=1;
     }
+    rmsd = sqrt(rmsd/count);
 }
 
 
@@ -1189,7 +1248,7 @@ void MonteCarloSimulation::MCsetbasepairobj(vector<vector<Point3s>> &gradient, c
             Atomgradlist[count].push_back(resgradpt);
         }
 
-        //cout<<base1 << "-" << base2 << "-" << basepairscorelist[i]<<endl;
+        //cout<<res1 << "-" << res2 << "-" <<  base1 << "-" << base2 << "-" << basepairscorelist[i] * K<<endl;
 
         BasePairobj bpobjone(AtomPtrslist[count], Atomgradlist[count], basepairscorelist[i] * K);
         bpobj.push_back(bpobjone);
@@ -1246,7 +1305,9 @@ void MonteCarloSimulation::MCsetNonbondedobj(vector<vector<Point3s>> &gradient, 
     char AccBase, DonBase;
     int atomnum1, atomnum2, atomnum;
     int res1, res2;
+    double length_thresh;
     bool flag;
+    vector<vector<vector<int>>> hbondinfo;
     vector<string> nts={"A","C","G","U"};
     map<string, int> atomnumnts={{"A", 33}, {"C", 31}, {"G", 34}, {"U", 30}};
 
@@ -1315,6 +1376,70 @@ void MonteCarloSimulation::MCsetNonbondedobj(vector<vector<Point3s>> &gradient, 
                     }
                 }
                 */
+
+                hbondinfo = BBHbondInfo[base1_str+base2_str];
+
+                k = 0;
+                AccBase = base1; DonBase = base2;
+                length_thresh = BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean + HBOND_CONST*BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_std;
+
+                //cout<<hbondinfo[k][0][0] << "-" << hbondinfo[k][0][1] << "-" << hbondinfo[k][0][2]<<endl;
+                //cout << BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean << "-" << length_thresh<<endl;
+
+                flag = checkhbond(&refinestr_temp[j].ptv[hbondinfo[k][0][1]], &refinestr_temp[j].ptv[hbondinfo[k][0][2]], &refinestr_temp[i].ptv[hbondinfo[k][0][0]], length_thresh);
+
+                if(flag){
+                    Hbondobj hbondobjone = Hbondobj::create(&refinestr_temp[j].ptv[hbondinfo[k][0][1]], &refinestr_temp[j].ptv[hbondinfo[k][0][2]], &refinestr_temp[i].ptv[hbondinfo[k][0][0]], &gradient[j][hbondinfo[k][0][1]], &gradient[j][hbondinfo[k][0][2]], &gradient[i][hbondinfo[k][0][0]], BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean, BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean, BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean - BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_std, enecoeff["BBHBond"]);
+                    hbondobj.push_back(hbondobjone);
+                }
+
+                for(k=1;k<hbondinfo.size();k++)
+                {
+                    AccBase = base1; DonBase = base2;
+
+                    length_thresh = BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean + HBOND_CONST*BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_std;
+
+                    //cout<<hbondinfo[k][0][0] << "-" << hbondinfo[k][0][1] << "-" << hbondinfo[k][0][2]<<endl;
+                    //cout << BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean << "-" << length_thresh<<endl;
+
+                    flag = checkhbond(&refinestr_temp[j].ptv[hbondinfo[k][0][1]], &refinestr_temp[j].ptv[hbondinfo[k][0][2]], &refinestr_temp[i].ptv[hbondinfo[k][0][0]], length_thresh);
+					if(!flag) continue;
+
+                    Hbondobj hbondobjone = Hbondobj::create(&refinestr_temp[j].ptv[hbondinfo[k][0][1]], &refinestr_temp[j].ptv[hbondinfo[k][0][2]], &refinestr_temp[i].ptv[hbondinfo[k][0][0]], &gradient[j][hbondinfo[k][0][1]], &gradient[j][hbondinfo[k][0][2]], &gradient[i][hbondinfo[k][0][0]], BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean, BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean, BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean - BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_std, enecoeff["BBBaseHBond"]);
+                    hbondobj.push_back(hbondobjone);
+                }
+
+                hbondinfo = BBHbondInfo[base2_str+base1_str];
+
+                k = 0;
+                AccBase = base2; DonBase = base1;
+                length_thresh = BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean + HBOND_CONST*BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_std;
+
+                //cout<<hbondinfo[k][0][0] << "-" << hbondinfo[k][0][1] << "-" << hbondinfo[k][0][2]<<endl;
+                //cout<< BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean << "-" << length_thresh<<endl;
+
+                flag = checkhbond(&refinestr_temp[i].ptv[hbondinfo[k][0][1]], &refinestr_temp[i].ptv[hbondinfo[k][0][2]], &refinestr_temp[j].ptv[hbondinfo[k][0][0]], length_thresh);
+
+                if(flag){
+                    Hbondobj hbondobjone = Hbondobj::create(&refinestr_temp[i].ptv[hbondinfo[k][0][1]], &refinestr_temp[i].ptv[hbondinfo[k][0][2]], &refinestr_temp[j].ptv[hbondinfo[k][0][0]], &gradient[i][hbondinfo[k][0][1]], &gradient[i][hbondinfo[k][0][2]], &gradient[j][hbondinfo[k][0][0]], BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean, BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean, BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean - BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_std, enecoeff["BBHBond"]);
+                    hbondobj.push_back(hbondobjone);
+                }
+
+                for(k=1;k<hbondinfo.size();k++)
+                {
+                    AccBase = base2; DonBase = base1;
+
+                    length_thresh = BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean + HBOND_CONST*BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_std;
+
+                    //cout<<hbondinfo[k][0][0] << "-" << hbondinfo[k][0][1] << "-" << hbondinfo[k][0][2]<<endl;
+                    //cout<< BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean << "-" << length_thresh<<endl;
+
+                    flag = checkhbond(&refinestr_temp[i].ptv[hbondinfo[k][0][1]], &refinestr_temp[i].ptv[hbondinfo[k][0][2]], &refinestr_temp[j].ptv[hbondinfo[k][0][0]], length_thresh);
+					if(!flag) continue;
+
+                    Hbondobj hbondobjone = Hbondobj::create(&refinestr_temp[i].ptv[hbondinfo[k][0][1]], &refinestr_temp[i].ptv[hbondinfo[k][0][2]], &refinestr_temp[j].ptv[hbondinfo[k][0][0]], &gradient[i][hbondinfo[k][0][1]], &gradient[i][hbondinfo[k][0][2]], &gradient[j][hbondinfo[k][0][0]], BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean, BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean, BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean - BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_std, enecoeff["BBBaseHBond"]);
+                    hbondobj.push_back(hbondobjone);
+                }
 
                 if(contactmap[i][j] >= 1)
                 {
@@ -1412,6 +1537,40 @@ void MonteCarloSimulation::MCsetNonbondedobj(vector<vector<Point3s>> &gradient, 
                     }
                 }
             }else{
+                hbondinfo = BBHbondInfo[base1_str+base2_str];
+                for(k=1;k<hbondinfo.size();k++)
+                {
+                    AccBase = base1; DonBase = base2;
+
+                    length_thresh = BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean + HBOND_CONST*BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_std;
+
+                    //cout<<hbondinfo[k][0][0] << "-" << hbondinfo[k][0][1] << "-" << hbondinfo[k][0][2]<<endl;
+                    //cout << BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean << "-" << length_thresh<<endl;
+
+                    flag = checkhbond(&refinestr_temp[j].ptv[hbondinfo[k][0][1]], &refinestr_temp[j].ptv[hbondinfo[k][0][2]], &refinestr_temp[i].ptv[hbondinfo[k][0][0]], length_thresh);
+					if(!flag) continue;
+
+                    Hbondobj hbondobjone = Hbondobj::create(&refinestr_temp[j].ptv[hbondinfo[k][0][1]], &refinestr_temp[j].ptv[hbondinfo[k][0][2]], &refinestr_temp[i].ptv[hbondinfo[k][0][0]], &gradient[j][hbondinfo[k][0][1]], &gradient[j][hbondinfo[k][0][2]], &gradient[i][hbondinfo[k][0][0]], BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean, BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean, BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean - BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_std, enecoeff["BBBaseHBond"]);
+                    hbondobj.push_back(hbondobjone);
+                }
+
+                hbondinfo = BBHbondInfo[base2_str+base1_str];
+                for(k=1;k<hbondinfo.size();k++)
+                {
+                    AccBase = base2; DonBase = base1;
+
+                    length_thresh = BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean + HBOND_CONST*BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_std;
+
+                    //cout<<hbondinfo[k][0][0] << "-" << hbondinfo[k][0][1] << "-" << hbondinfo[k][0][2]<<endl;
+                    //cout<< BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean << "-" << length_thresh<<endl;
+
+                    flag = checkhbond(&refinestr_temp[i].ptv[hbondinfo[k][0][1]], &refinestr_temp[i].ptv[hbondinfo[k][0][2]], &refinestr_temp[j].ptv[hbondinfo[k][0][0]], length_thresh);
+					if(!flag) continue;
+
+                    Hbondobj hbondobjone = Hbondobj::create(&refinestr_temp[i].ptv[hbondinfo[k][0][1]], &refinestr_temp[i].ptv[hbondinfo[k][0][2]], &refinestr_temp[j].ptv[hbondinfo[k][0][0]], &gradient[i][hbondinfo[k][0][1]], &gradient[i][hbondinfo[k][0][2]], &gradient[j][hbondinfo[k][0][0]], BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean, BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean, BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean - BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_std, enecoeff["BBBaseHBond"]);
+                    hbondobj.push_back(hbondobjone);
+                }
+
                 if(contactmap[i][j] >= 1)
                 {
                     for(int ii=0;ii<atomid2mcidx[base1].size();ii++)
@@ -1462,7 +1621,8 @@ void MonteCarloSimulation::MCsetNonbondedobj(vector<vector<Point3s>> &gradient, 
         }
     }
 
-    for(int i=0;i<cbasepairlist.size();i++){
+    for(int i=0;i<cbasepairlist.size();i++)
+    {
         res1=cbasepairlist[i][0];
         res2=cbasepairlist[i][1];
 
@@ -1475,7 +1635,7 @@ void MonteCarloSimulation::MCsetNonbondedobj(vector<vector<Point3s>> &gradient, 
         //cout<<"aaa"<<endl;
         //cout<<base1 << "-" << base2 <<"-" << cbasepairscorelist[i]<< endl;
 
-        vector<vector<vector<int>>> hbondinfo = BpHbondInfo[base1_str+base2_str];
+        hbondinfo = BpHbondInfo[base1_str+base2_str];
         for(k=0;k<hbondinfo.size();k++)
         {
             if(hbondinfo[k].size() > 1)
@@ -1483,34 +1643,43 @@ void MonteCarloSimulation::MCsetNonbondedobj(vector<vector<Point3s>> &gradient, 
                 if(hbondinfo[k][0][3] == 0){
                     AccBase = base1; DonBase = base2;
 
+                    //cout<<hbondinfo[k][0][0] << "-" << hbondinfo[k][0][1] << "-" << hbondinfo[k][0][2]<<endl;
+
                     //cout<<BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean << "-" << BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean << "-" << BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean<<endl;
-                    Hbond2hydobj hbondobjone = Hbond2hydobj::create(&refinestr_temp[res2].ptv[hbondinfo[k][0][1]], &refinestr_temp[res2].ptv[hbondinfo[k][1][1]], &refinestr_temp[res2].ptv[hbondinfo[k][0][2]], &refinestr_temp[res1].ptv[hbondinfo[k][0][0]], &gradient[res2][hbondinfo[k][0][1]], &gradient[res2][hbondinfo[k][1][1]], &gradient[res2][hbondinfo[k][0][2]], &gradient[res1][hbondinfo[k][0][0]], BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean, cbasepairscorelist[i]*enecoeff["HBond"]);
+                    Hbond2hydobj hbondobjone = Hbond2hydobj::create(&refinestr_temp[res2].ptv[hbondinfo[k][0][1]], &refinestr_temp[res2].ptv[hbondinfo[k][1][1]], &refinestr_temp[res2].ptv[hbondinfo[k][0][2]], &refinestr_temp[res1].ptv[hbondinfo[k][0][0]], &gradient[res2][hbondinfo[k][0][1]], &gradient[res2][hbondinfo[k][1][1]], &gradient[res2][hbondinfo[k][0][2]], &gradient[res1][hbondinfo[k][0][0]], BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean - BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_std, cbasepairscorelist[i]*enecoeff["HBond"]);
                     hbondbpobj.push_back(hbondobjone);
                 }else{
                     AccBase = base2; DonBase = base1;
 
+                    //cout<<hbondinfo[k][0][0] << "-" << hbondinfo[k][0][1] << "-" << hbondinfo[k][0][2]<<endl;
+
                     //cout<<BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean << "-" << BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean << "-" << BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean<<endl;
-                    Hbond2hydobj hbondobjone = Hbond2hydobj::create(&refinestr_temp[res1].ptv[hbondinfo[k][0][1]], &refinestr_temp[res1].ptv[hbondinfo[k][1][1]], &refinestr_temp[res1].ptv[hbondinfo[k][0][2]], &refinestr_temp[res2].ptv[hbondinfo[k][0][0]], &gradient[res1][hbondinfo[k][0][1]], &gradient[res1][hbondinfo[k][1][1]], &gradient[res1][hbondinfo[k][0][2]], &gradient[res2][hbondinfo[k][0][0]], BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean, cbasepairscorelist[i]*enecoeff["HBond"]);
+                    Hbond2hydobj hbondobjone = Hbond2hydobj::create(&refinestr_temp[res1].ptv[hbondinfo[k][0][1]], &refinestr_temp[res1].ptv[hbondinfo[k][1][1]], &refinestr_temp[res1].ptv[hbondinfo[k][0][2]], &refinestr_temp[res2].ptv[hbondinfo[k][0][0]], &gradient[res1][hbondinfo[k][0][1]], &gradient[res1][hbondinfo[k][1][1]], &gradient[res1][hbondinfo[k][0][2]], &gradient[res2][hbondinfo[k][0][0]], BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean - BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_std, cbasepairscorelist[i]*enecoeff["HBond"]);
                     hbondbpobj.push_back(hbondobjone);
                 }
             }else{
                 if(hbondinfo[k][0][3] == 0){
                     AccBase = base1; DonBase = base2;
 
+                    //cout<<hbondinfo[k][0][0] << "-" << hbondinfo[k][0][1] << "-" << hbondinfo[k][0][2]<<endl;
+
                     //cout<<BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean << "-" << BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean << "-" << BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean<<endl;
-                    Hbondobj hbondobjone = Hbondobj::create(&refinestr_temp[res2].ptv[hbondinfo[k][0][1]], &refinestr_temp[res2].ptv[hbondinfo[k][0][2]], &refinestr_temp[res1].ptv[hbondinfo[k][0][0]], &gradient[res2][hbondinfo[k][0][1]], &gradient[res2][hbondinfo[k][0][2]], &gradient[res1][hbondinfo[k][0][0]], BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean, cbasepairscorelist[i]*enecoeff["HBond"]);
+                    Hbondobj hbondobjone = Hbondobj::create(&refinestr_temp[res2].ptv[hbondinfo[k][0][1]], &refinestr_temp[res2].ptv[hbondinfo[k][0][2]], &refinestr_temp[res1].ptv[hbondinfo[k][0][0]], &gradient[res2][hbondinfo[k][0][1]], &gradient[res2][hbondinfo[k][0][2]], &gradient[res1][hbondinfo[k][0][0]], BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean - BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_std, cbasepairscorelist[i]*enecoeff["HBond"]);
                     hbondobj.push_back(hbondobjone);
                 }else{
                     AccBase = base2; DonBase = base1;
 
+                    //cout<<hbondinfo[k][0][0] << "-" << hbondinfo[k][0][1] << "-" << hbondinfo[k][0][2]<<endl;
+
                     //cout<<BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean << "-" << BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean << "-" << BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean<<endl;
-                    Hbondobj hbondobjone = Hbondobj::create(&refinestr_temp[res1].ptv[hbondinfo[k][0][1]], &refinestr_temp[res1].ptv[hbondinfo[k][0][2]], &refinestr_temp[res2].ptv[hbondinfo[k][0][0]], &gradient[res1][hbondinfo[k][0][1]], &gradient[res1][hbondinfo[k][0][2]], &gradient[res2][hbondinfo[k][0][0]], BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean, cbasepairscorelist[i]*enecoeff["HBond"]);
+                    Hbondobj hbondobjone = Hbondobj::create(&refinestr_temp[res1].ptv[hbondinfo[k][0][1]], &refinestr_temp[res1].ptv[hbondinfo[k][0][2]], &refinestr_temp[res2].ptv[hbondinfo[k][0][0]], &gradient[res1][hbondinfo[k][0][1]], &gradient[res1][hbondinfo[k][0][2]], &gradient[res2][hbondinfo[k][0][0]], BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean - BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_std, cbasepairscorelist[i]*enecoeff["HBond"]);
                     hbondobj.push_back(hbondobjone);
                 }
             }
         }
 
     }
+    
 
     for(int i=0;i<noncbasepairlist.size();i++){
         res1=noncbasepairlist[i][0];
@@ -1525,7 +1694,7 @@ void MonteCarloSimulation::MCsetNonbondedobj(vector<vector<Point3s>> &gradient, 
         //cout<<"bbb"<<endl;
         //cout<<base1 << "-" << base2 <<"-" << noncbasepairscorelist[i] << endl;
 
-        vector<vector<vector<int>>> hbondinfo = BpHbondInfo[base1_str+base2_str];
+        hbondinfo = BpHbondInfo[base1_str+base2_str];
         for(k=0;k<hbondinfo.size();k++)
         {
             if(hbondinfo[k].size() > 1)
@@ -1535,49 +1704,338 @@ void MonteCarloSimulation::MCsetNonbondedobj(vector<vector<Point3s>> &gradient, 
 
                     //cout<<BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean << "-" << BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean << "-" << BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean<<endl;
                     
-                    flag = checkhbond2(&refinestr_temp[res2].ptv[hbondinfo[k][0][1]], &refinestr_temp[res2].ptv[hbondinfo[k][1][1]], &refinestr_temp[res2].ptv[hbondinfo[k][0][2]], &refinestr_temp[res1].ptv[hbondinfo[k][0][0]]);
+                    length_thresh = BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean + HBOND_CONST*BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_std;
+
+                    //cout<<hbondinfo[k][0][0] << "-" << hbondinfo[k][0][1] << "-" << hbondinfo[k][0][2]<<endl;
+                    //cout<<BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean << "-" << length_thresh<<endl;
+
+                    flag = checkhbond2(&refinestr_temp[res2].ptv[hbondinfo[k][0][1]], &refinestr_temp[res2].ptv[hbondinfo[k][1][1]], &refinestr_temp[res2].ptv[hbondinfo[k][0][2]], &refinestr_temp[res1].ptv[hbondinfo[k][0][0]], length_thresh);
                     
                     if(!flag) continue;
 
-                    Hbond2hydobj hbondobjone = Hbond2hydobj::create(&refinestr_temp[res2].ptv[hbondinfo[k][0][1]], &refinestr_temp[res2].ptv[hbondinfo[k][1][1]], &refinestr_temp[res2].ptv[hbondinfo[k][0][2]], &refinestr_temp[res1].ptv[hbondinfo[k][0][0]], &gradient[res2][hbondinfo[k][0][1]], &gradient[res2][hbondinfo[k][1][1]], &gradient[res2][hbondinfo[k][0][2]], &gradient[res1][hbondinfo[k][0][0]], BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean, noncbasepairscorelist[i]*enecoeff["HBond"]);
+                    Hbond2hydobj hbondobjone = Hbond2hydobj::create(&refinestr_temp[res2].ptv[hbondinfo[k][0][1]], &refinestr_temp[res2].ptv[hbondinfo[k][1][1]], &refinestr_temp[res2].ptv[hbondinfo[k][0][2]], &refinestr_temp[res1].ptv[hbondinfo[k][0][0]], &gradient[res2][hbondinfo[k][0][1]], &gradient[res2][hbondinfo[k][1][1]], &gradient[res2][hbondinfo[k][0][2]], &gradient[res1][hbondinfo[k][0][0]], BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean - BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_std, noncbasepairscorelist[i]*enecoeff["HBond"]);
                     hbondbpobj.push_back(hbondobjone);
                 }else{
                     AccBase = base2; DonBase = base1;
 
-                    flag = checkhbond2(&refinestr_temp[res1].ptv[hbondinfo[k][0][1]], &refinestr_temp[res1].ptv[hbondinfo[k][1][1]], &refinestr_temp[res1].ptv[hbondinfo[k][0][2]], &refinestr_temp[res2].ptv[hbondinfo[k][0][0]]);
+                    length_thresh = BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean + HBOND_CONST*BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_std;
+
+                    //cout<<hbondinfo[k][0][0] << "-" << hbondinfo[k][0][1] << "-" << hbondinfo[k][0][2]<<endl;
+                    //cout<<BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean << "-" << length_thresh<<endl;
+
+                    flag = checkhbond2(&refinestr_temp[res1].ptv[hbondinfo[k][0][1]], &refinestr_temp[res1].ptv[hbondinfo[k][1][1]], &refinestr_temp[res1].ptv[hbondinfo[k][0][2]], &refinestr_temp[res2].ptv[hbondinfo[k][0][0]], length_thresh);
                     
                     if(!flag) continue;
 
                     //cout<<BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean << "-" << BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean << "-" << BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean<<endl;
-                    Hbond2hydobj hbondobjone = Hbond2hydobj::create(&refinestr_temp[res1].ptv[hbondinfo[k][0][1]], &refinestr_temp[res1].ptv[hbondinfo[k][1][1]], &refinestr_temp[res1].ptv[hbondinfo[k][0][2]], &refinestr_temp[res2].ptv[hbondinfo[k][0][0]], &gradient[res1][hbondinfo[k][0][1]], &gradient[res1][hbondinfo[k][1][1]], &gradient[res1][hbondinfo[k][0][2]], &gradient[res2][hbondinfo[k][0][0]], BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean, noncbasepairscorelist[i]*enecoeff["HBond"]);
+                    Hbond2hydobj hbondobjone = Hbond2hydobj::create(&refinestr_temp[res1].ptv[hbondinfo[k][0][1]], &refinestr_temp[res1].ptv[hbondinfo[k][1][1]], &refinestr_temp[res1].ptv[hbondinfo[k][0][2]], &refinestr_temp[res2].ptv[hbondinfo[k][0][0]], &gradient[res1][hbondinfo[k][0][1]], &gradient[res1][hbondinfo[k][1][1]], &gradient[res1][hbondinfo[k][0][2]], &gradient[res2][hbondinfo[k][0][0]], BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean - BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_std, noncbasepairscorelist[i]*enecoeff["HBond"]);
                     hbondbpobj.push_back(hbondobjone);
                 }
             }else{
                 if(hbondinfo[k][0][3] == 0){
                     AccBase = base1; DonBase = base2;
 
-                    flag = checkhbond(&refinestr_temp[res2].ptv[hbondinfo[k][0][1]], &refinestr_temp[res2].ptv[hbondinfo[k][0][2]], &refinestr_temp[res1].ptv[hbondinfo[k][0][0]]);
+                    length_thresh = BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean + HBOND_CONST*BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_std;
+
+                    //cout<<hbondinfo[k][0][0] << "-" << hbondinfo[k][0][1] << "-" << hbondinfo[k][0][2]<<endl;
+                    //cout<<BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean << "-" << length_thresh<<endl;
+
+                    flag = checkhbond(&refinestr_temp[res2].ptv[hbondinfo[k][0][1]], &refinestr_temp[res2].ptv[hbondinfo[k][0][2]], &refinestr_temp[res1].ptv[hbondinfo[k][0][0]], length_thresh);
 
 					if(!flag) continue;
 
                     //cout<<BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean << "-" << BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean << "-" << BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean<<endl;
-                    Hbondobj hbondobjone = Hbondobj::create(&refinestr_temp[res2].ptv[hbondinfo[k][0][1]], &refinestr_temp[res2].ptv[hbondinfo[k][0][2]], &refinestr_temp[res1].ptv[hbondinfo[k][0][0]], &gradient[res2][hbondinfo[k][0][1]], &gradient[res2][hbondinfo[k][0][2]], &gradient[res1][hbondinfo[k][0][0]], BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean, noncbasepairscorelist[i]*enecoeff["HBond"]);
+                    Hbondobj hbondobjone = Hbondobj::create(&refinestr_temp[res2].ptv[hbondinfo[k][0][1]], &refinestr_temp[res2].ptv[hbondinfo[k][0][2]], &refinestr_temp[res1].ptv[hbondinfo[k][0][0]], &gradient[res2][hbondinfo[k][0][1]], &gradient[res2][hbondinfo[k][0][2]], &gradient[res1][hbondinfo[k][0][0]], BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean - BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_std, noncbasepairscorelist[i]*enecoeff["HBond"]);
                     hbondobj.push_back(hbondobjone);
                 }else{
                     AccBase = base2; DonBase = base1;
 
-                    flag = checkhbond(&refinestr_temp[res1].ptv[hbondinfo[k][0][1]], &refinestr_temp[res1].ptv[hbondinfo[k][0][2]], &refinestr_temp[res2].ptv[hbondinfo[k][0][0]]);
+                    length_thresh = BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean + HBOND_CONST*BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_std;
+
+                    //cout<<hbondinfo[k][0][0] << "-" << hbondinfo[k][0][1] << "-" << hbondinfo[k][0][2]<<endl;
+                    //cout<<BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean << "-" << length_thresh<<endl;
+
+                    flag = checkhbond(&refinestr_temp[res1].ptv[hbondinfo[k][0][1]], &refinestr_temp[res1].ptv[hbondinfo[k][0][2]], &refinestr_temp[res2].ptv[hbondinfo[k][0][0]], length_thresh);
 
 					if(!flag) continue;
 
                     //cout<<BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean << "-" << BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean << "-" << BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean<<endl;
-                    Hbondobj hbondobjone = Hbondobj::create(&refinestr_temp[res1].ptv[hbondinfo[k][0][1]], &refinestr_temp[res1].ptv[hbondinfo[k][0][2]], &refinestr_temp[res2].ptv[hbondinfo[k][0][0]], &gradient[res1][hbondinfo[k][0][1]], &gradient[res1][hbondinfo[k][0][2]], &gradient[res2][hbondinfo[k][0][0]], BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean, noncbasepairscorelist[i]*enecoeff["HBond"]);
+                    Hbondobj hbondobjone = Hbondobj::create(&refinestr_temp[res1].ptv[hbondinfo[k][0][1]], &refinestr_temp[res1].ptv[hbondinfo[k][0][2]], &refinestr_temp[res2].ptv[hbondinfo[k][0][0]], &gradient[res1][hbondinfo[k][0][1]], &gradient[res1][hbondinfo[k][0][2]], &gradient[res2][hbondinfo[k][0][0]], BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean - BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_std, noncbasepairscorelist[i]*enecoeff["HBond"]);
                     hbondobj.push_back(hbondobjone);
                 }
             }
         }
     }
+
 }
+
+
+void MonteCarloSimulation::MCresetNonbondedobj(vector<vector<Point3s>> &gradient, const vector<vector<int>> &contactmap, 
+    const vector<vector<int>> &bindingmap, const vector<vector<int>> &cbasepairlist, const vector<vector<int>> &noncbasepairlist, 
+    const vector<double> &cbasepairscorelist, const vector<double> &noncbasepairscorelist,  
+    list<Hbondobj> &hbondobj, list<Hbond2hydobj> &hbondbpobj, map<string, double> &enecoeff)
+{
+    hbondobj.clear();
+    hbondbpobj.clear();
+
+    int i, j, k;
+    char base1, base2;
+    string base1_str, base2_str, base;
+    double dQQ, dQQep;
+    Point3d p12;
+    char AccBase, DonBase;
+    int atomnum1, atomnum2, atomnum;
+    int res1, res2;
+    double length_thresh;
+    bool flag;
+    vector<vector<vector<int>>> hbondinfo;
+    vector<string> nts={"A","C","G","U"};
+    map<string, int> atomnumnts={{"A", 33}, {"C", 31}, {"G", 34}, {"U", 30}};
+
+    for(i=0;i<numbb;i++)
+	{
+		base1=refinestr_temp[i].aaa;
+		base1_str=string(1, base1);
+        atomnum1=AccAtomParamNum[base1][4];
+		for(j=i;j<numbb;j++)
+		{
+			base2=refinestr_temp[j].aaa;
+			base2_str=string(1, base2);
+            atomnum2=AccAtomParamNum[base2][4];
+            
+            if(i != j)
+            {
+                hbondinfo = BBHbondInfo[base1_str+base2_str];
+
+                k = 0;
+                AccBase = base1; DonBase = base2;
+                length_thresh = BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean + HBOND_CONST*BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_std;
+
+                //cout<<hbondinfo[k][0][0] << "-" << hbondinfo[k][0][1] << "-" << hbondinfo[k][0][2]<<endl;
+                //cout << BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean << "-" << length_thresh<<endl;
+
+                flag = checkhbond(&refinestr_temp[j].ptv[hbondinfo[k][0][1]], &refinestr_temp[j].ptv[hbondinfo[k][0][2]], &refinestr_temp[i].ptv[hbondinfo[k][0][0]], length_thresh);
+
+                if(enecoeff["BBHBond"] > 0){
+                    if(flag){
+                        Hbondobj hbondobjone = Hbondobj::create(&refinestr_temp[j].ptv[hbondinfo[k][0][1]], &refinestr_temp[j].ptv[hbondinfo[k][0][2]], &refinestr_temp[i].ptv[hbondinfo[k][0][0]], &gradient[j][hbondinfo[k][0][1]], &gradient[j][hbondinfo[k][0][2]], &gradient[i][hbondinfo[k][0][0]], BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean, BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean, BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean - BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_std, enecoeff["BBHBond"]);
+                        hbondobj.push_back(hbondobjone);
+                    }
+                }
+
+                if(enecoeff["BBBaseHBond"] > 0){
+                    for(k=1;k<hbondinfo.size();k++)
+                    {
+                        AccBase = base1; DonBase = base2;
+
+                        length_thresh = BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean + HBOND_CONST*BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_std;
+
+                        //cout<<hbondinfo[k][0][0] << "-" << hbondinfo[k][0][1] << "-" << hbondinfo[k][0][2]<<endl;
+                        //cout << BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean << "-" << length_thresh<<endl;
+
+                        flag = checkhbond(&refinestr_temp[j].ptv[hbondinfo[k][0][1]], &refinestr_temp[j].ptv[hbondinfo[k][0][2]], &refinestr_temp[i].ptv[hbondinfo[k][0][0]], length_thresh);
+                        if(!flag) continue;
+
+                        Hbondobj hbondobjone = Hbondobj::create(&refinestr_temp[j].ptv[hbondinfo[k][0][1]], &refinestr_temp[j].ptv[hbondinfo[k][0][2]], &refinestr_temp[i].ptv[hbondinfo[k][0][0]], &gradient[j][hbondinfo[k][0][1]], &gradient[j][hbondinfo[k][0][2]], &gradient[i][hbondinfo[k][0][0]], BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean, BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean, BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean - BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_std, enecoeff["BBBaseHBond"]);
+                        hbondobj.push_back(hbondobjone);
+                    }
+                }
+
+                hbondinfo = BBHbondInfo[base2_str+base1_str];
+
+                k = 0;
+                AccBase = base2; DonBase = base1;
+                length_thresh = BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean + HBOND_CONST*BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_std;
+
+                //cout<<hbondinfo[k][0][0] << "-" << hbondinfo[k][0][1] << "-" << hbondinfo[k][0][2]<<endl;
+                //cout<< BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean << "-" << length_thresh<<endl;
+
+                flag = checkhbond(&refinestr_temp[i].ptv[hbondinfo[k][0][1]], &refinestr_temp[i].ptv[hbondinfo[k][0][2]], &refinestr_temp[j].ptv[hbondinfo[k][0][0]], length_thresh);
+
+                if(enecoeff["BBHBond"] > 0){
+                    if(flag){
+                        Hbondobj hbondobjone = Hbondobj::create(&refinestr_temp[i].ptv[hbondinfo[k][0][1]], &refinestr_temp[i].ptv[hbondinfo[k][0][2]], &refinestr_temp[j].ptv[hbondinfo[k][0][0]], &gradient[i][hbondinfo[k][0][1]], &gradient[i][hbondinfo[k][0][2]], &gradient[j][hbondinfo[k][0][0]], BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean, BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean, BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean - BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_std, enecoeff["BBHBond"]);
+                        hbondobj.push_back(hbondobjone);
+                    }
+                }
+
+                if(enecoeff["BBBaseHBond"] > 0){
+                    for(k=1;k<hbondinfo.size();k++)
+                    {
+                        AccBase = base2; DonBase = base1;
+
+                        length_thresh = BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean + HBOND_CONST*BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_std;
+
+                        //cout<<hbondinfo[k][0][0] << "-" << hbondinfo[k][0][1] << "-" << hbondinfo[k][0][2]<<endl;
+                        //cout<< BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean << "-" << length_thresh<<endl;
+
+                        flag = checkhbond(&refinestr_temp[i].ptv[hbondinfo[k][0][1]], &refinestr_temp[i].ptv[hbondinfo[k][0][2]], &refinestr_temp[j].ptv[hbondinfo[k][0][0]], length_thresh);
+                        if(!flag) continue;
+
+                        Hbondobj hbondobjone = Hbondobj::create(&refinestr_temp[i].ptv[hbondinfo[k][0][1]], &refinestr_temp[i].ptv[hbondinfo[k][0][2]], &refinestr_temp[j].ptv[hbondinfo[k][0][0]], &gradient[i][hbondinfo[k][0][1]], &gradient[i][hbondinfo[k][0][2]], &gradient[j][hbondinfo[k][0][0]], BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean, BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean, BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean - BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_std, enecoeff["BBBaseHBond"]);
+                        hbondobj.push_back(hbondobjone);
+                    }
+                }
+            }else{
+                if(enecoeff["BBBaseHBond"] > 0){
+                    hbondinfo = BBHbondInfo[base1_str+base2_str];
+
+                    for(k=1;k<hbondinfo.size();k++)
+                    {
+                        AccBase = base1; DonBase = base2;
+
+                        length_thresh = BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean + HBOND_CONST*BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_std;
+
+                        //cout<<hbondinfo[k][0][0] << "-" << hbondinfo[k][0][1] << "-" << hbondinfo[k][0][2]<<endl;
+                        //cout << BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean << "-" << length_thresh<<endl;
+
+                        flag = checkhbond(&refinestr_temp[j].ptv[hbondinfo[k][0][1]], &refinestr_temp[j].ptv[hbondinfo[k][0][2]], &refinestr_temp[i].ptv[hbondinfo[k][0][0]], length_thresh);
+                        if(!flag) continue;
+
+                        Hbondobj hbondobjone = Hbondobj::create(&refinestr_temp[j].ptv[hbondinfo[k][0][1]], &refinestr_temp[j].ptv[hbondinfo[k][0][2]], &refinestr_temp[i].ptv[hbondinfo[k][0][0]], &gradient[j][hbondinfo[k][0][1]], &gradient[j][hbondinfo[k][0][2]], &gradient[i][hbondinfo[k][0][0]], BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean, BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean, BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean - BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_std, enecoeff["BBBaseHBond"]);
+                        hbondobj.push_back(hbondobjone);
+                    }
+                }
+
+                if(enecoeff["BBBaseHBond"] > 0){
+                    hbondinfo = BBHbondInfo[base2_str+base1_str];
+
+                    for(k=1;k<hbondinfo.size();k++)
+                    {
+                        AccBase = base2; DonBase = base1;
+
+                        length_thresh = BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean + HBOND_CONST*BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_std;
+
+                        //cout<<hbondinfo[k][0][0] << "-" << hbondinfo[k][0][1] << "-" << hbondinfo[k][0][2]<<endl;
+                        //cout<< BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean << "-" << length_thresh<<endl;
+
+                        flag = checkhbond(&refinestr_temp[i].ptv[hbondinfo[k][0][1]], &refinestr_temp[i].ptv[hbondinfo[k][0][2]], &refinestr_temp[j].ptv[hbondinfo[k][0][0]], length_thresh);
+                        if(!flag) continue;
+
+                        Hbondobj hbondobjone = Hbondobj::create(&refinestr_temp[i].ptv[hbondinfo[k][0][1]], &refinestr_temp[i].ptv[hbondinfo[k][0][2]], &refinestr_temp[j].ptv[hbondinfo[k][0][0]], &gradient[i][hbondinfo[k][0][1]], &gradient[i][hbondinfo[k][0][2]], &gradient[j][hbondinfo[k][0][0]], BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean, BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean, BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean - BBHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_std, enecoeff["BBBaseHBond"]);
+                        hbondobj.push_back(hbondobjone);
+                    }
+                }
+            }
+        }
+    }
+
+    if(enecoeff["HBond"] > 0){
+        for(int i=0;i<cbasepairlist.size();i++)
+        {
+            res1=cbasepairlist[i][0];
+            res2=cbasepairlist[i][1];
+
+            base1 = refinestr_temp[res1].aaa;
+            base2 = refinestr_temp[res2].aaa;
+
+            base1_str=string(1, base1);
+            base2_str=string(1, base2);
+            
+            hbondinfo = BpHbondInfo[base1_str+base2_str];
+            for(k=0;k<hbondinfo.size();k++)
+            {
+                if(hbondinfo[k].size() > 1)
+                {
+                    if(hbondinfo[k][0][3] == 0){
+                        AccBase = base1; DonBase = base2;
+
+                        Hbond2hydobj hbondobjone = Hbond2hydobj::create(&refinestr_temp[res2].ptv[hbondinfo[k][0][1]], &refinestr_temp[res2].ptv[hbondinfo[k][1][1]], &refinestr_temp[res2].ptv[hbondinfo[k][0][2]], &refinestr_temp[res1].ptv[hbondinfo[k][0][0]], &gradient[res2][hbondinfo[k][0][1]], &gradient[res2][hbondinfo[k][1][1]], &gradient[res2][hbondinfo[k][0][2]], &gradient[res1][hbondinfo[k][0][0]], BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean - BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_std, cbasepairscorelist[i]*enecoeff["HBond"]);
+                        hbondbpobj.push_back(hbondobjone);
+                    }else{
+                        AccBase = base2; DonBase = base1;
+                        
+                        Hbond2hydobj hbondobjone = Hbond2hydobj::create(&refinestr_temp[res1].ptv[hbondinfo[k][0][1]], &refinestr_temp[res1].ptv[hbondinfo[k][1][1]], &refinestr_temp[res1].ptv[hbondinfo[k][0][2]], &refinestr_temp[res2].ptv[hbondinfo[k][0][0]], &gradient[res1][hbondinfo[k][0][1]], &gradient[res1][hbondinfo[k][1][1]], &gradient[res1][hbondinfo[k][0][2]], &gradient[res2][hbondinfo[k][0][0]], BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean - BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_std, cbasepairscorelist[i]*enecoeff["HBond"]);
+                        hbondbpobj.push_back(hbondobjone);
+                    }
+                }else{
+                    if(hbondinfo[k][0][3] == 0){
+                        AccBase = base1; DonBase = base2;
+                        
+                        Hbondobj hbondobjone = Hbondobj::create(&refinestr_temp[res2].ptv[hbondinfo[k][0][1]], &refinestr_temp[res2].ptv[hbondinfo[k][0][2]], &refinestr_temp[res1].ptv[hbondinfo[k][0][0]], &gradient[res2][hbondinfo[k][0][1]], &gradient[res2][hbondinfo[k][0][2]], &gradient[res1][hbondinfo[k][0][0]], BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean - BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_std, cbasepairscorelist[i]*enecoeff["HBond"]);
+                        hbondobj.push_back(hbondobjone);
+                    }else{
+                        AccBase = base2; DonBase = base1;
+                        
+                        Hbondobj hbondobjone = Hbondobj::create(&refinestr_temp[res1].ptv[hbondinfo[k][0][1]], &refinestr_temp[res1].ptv[hbondinfo[k][0][2]], &refinestr_temp[res2].ptv[hbondinfo[k][0][0]], &gradient[res1][hbondinfo[k][0][1]], &gradient[res1][hbondinfo[k][0][2]], &gradient[res2][hbondinfo[k][0][0]], BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean - BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_std, cbasepairscorelist[i]*enecoeff["HBond"]);
+                        hbondobj.push_back(hbondobjone);
+                    }
+                }
+            }
+        }
+        
+
+        for(int i=0;i<noncbasepairlist.size();i++){
+            res1=noncbasepairlist[i][0];
+            res2=noncbasepairlist[i][1];
+
+            base1 = refinestr_temp[res1].aaa;
+            base2 = refinestr_temp[res2].aaa;
+
+            base1_str=string(1, base1);
+            base2_str=string(1, base2);
+
+            //cout<<"bbb"<<endl;
+            //cout<<base1 << "-" << base2 <<"-" << noncbasepairscorelist[i] << endl;
+
+            hbondinfo = BpHbondInfo[base1_str+base2_str];
+            for(k=0;k<hbondinfo.size();k++)
+            {
+                if(hbondinfo[k].size() > 1)
+                {
+                    if(hbondinfo[k][0][3] == 0){
+                        AccBase = base1; DonBase = base2;
+
+                        length_thresh = BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean + HBOND_CONST*BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_std;
+
+                        flag = checkhbond2(&refinestr_temp[res2].ptv[hbondinfo[k][0][1]], &refinestr_temp[res2].ptv[hbondinfo[k][1][1]], &refinestr_temp[res2].ptv[hbondinfo[k][0][2]], &refinestr_temp[res1].ptv[hbondinfo[k][0][0]], length_thresh);
+                        
+                        if(!flag) continue;
+
+                        Hbond2hydobj hbondobjone = Hbond2hydobj::create(&refinestr_temp[res2].ptv[hbondinfo[k][0][1]], &refinestr_temp[res2].ptv[hbondinfo[k][1][1]], &refinestr_temp[res2].ptv[hbondinfo[k][0][2]], &refinestr_temp[res1].ptv[hbondinfo[k][0][0]], &gradient[res2][hbondinfo[k][0][1]], &gradient[res2][hbondinfo[k][1][1]], &gradient[res2][hbondinfo[k][0][2]], &gradient[res1][hbondinfo[k][0][0]], BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean - BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_std, noncbasepairscorelist[i]*enecoeff["HBond"]);
+                        hbondbpobj.push_back(hbondobjone);
+                    }else{
+                        AccBase = base2; DonBase = base1;
+
+                        length_thresh = BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean + HBOND_CONST*BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_std;
+
+                        flag = checkhbond2(&refinestr_temp[res1].ptv[hbondinfo[k][0][1]], &refinestr_temp[res1].ptv[hbondinfo[k][1][1]], &refinestr_temp[res1].ptv[hbondinfo[k][0][2]], &refinestr_temp[res2].ptv[hbondinfo[k][0][0]], length_thresh);
+                        
+                        if(!flag) continue;
+                        
+                        Hbond2hydobj hbondobjone = Hbond2hydobj::create(&refinestr_temp[res1].ptv[hbondinfo[k][0][1]], &refinestr_temp[res1].ptv[hbondinfo[k][1][1]], &refinestr_temp[res1].ptv[hbondinfo[k][0][2]], &refinestr_temp[res2].ptv[hbondinfo[k][0][0]], &gradient[res1][hbondinfo[k][0][1]], &gradient[res1][hbondinfo[k][1][1]], &gradient[res1][hbondinfo[k][0][2]], &gradient[res2][hbondinfo[k][0][0]], BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean - BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_std, noncbasepairscorelist[i]*enecoeff["HBond"]);
+                        hbondbpobj.push_back(hbondobjone);
+                    }
+                }else{
+                    if(hbondinfo[k][0][3] == 0){
+                        AccBase = base1; DonBase = base2;
+
+                        length_thresh = BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean + HBOND_CONST*BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_std;
+
+                        flag = checkhbond(&refinestr_temp[res2].ptv[hbondinfo[k][0][1]], &refinestr_temp[res2].ptv[hbondinfo[k][0][2]], &refinestr_temp[res1].ptv[hbondinfo[k][0][0]], length_thresh);
+
+                        if(!flag) continue;
+
+                        Hbondobj hbondobjone = Hbondobj::create(&refinestr_temp[res2].ptv[hbondinfo[k][0][1]], &refinestr_temp[res2].ptv[hbondinfo[k][0][2]], &refinestr_temp[res1].ptv[hbondinfo[k][0][0]], &gradient[res2][hbondinfo[k][0][1]], &gradient[res2][hbondinfo[k][0][2]], &gradient[res1][hbondinfo[k][0][0]], BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean - BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_std, noncbasepairscorelist[i]*enecoeff["HBond"]);
+                        hbondobj.push_back(hbondobjone);
+                    }else{
+                        AccBase = base2; DonBase = base1;
+
+                        length_thresh = BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean + HBOND_CONST*BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_std;
+
+                        flag = checkhbond(&refinestr_temp[res1].ptv[hbondinfo[k][0][1]], &refinestr_temp[res1].ptv[hbondinfo[k][0][2]], &refinestr_temp[res2].ptv[hbondinfo[k][0][0]], length_thresh);
+
+                        if(!flag) continue;
+                        
+                        Hbondobj hbondobjone = Hbondobj::create(&refinestr_temp[res1].ptv[hbondinfo[k][0][1]], &refinestr_temp[res1].ptv[hbondinfo[k][0][2]], &refinestr_temp[res2].ptv[hbondinfo[k][0][0]], &gradient[res1][hbondinfo[k][0][1]], &gradient[res1][hbondinfo[k][0][2]], &gradient[res2][hbondinfo[k][0][0]], BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].adlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].ahlength_mean, BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_mean - BPHBOND[AccBase][DonBase][hbondinfo[k][0][0]][hbondinfo[k][0][2]].dhaangle_std, noncbasepairscorelist[i]*enecoeff["HBond"]);
+                        hbondobj.push_back(hbondobjone);
+                    }
+                }
+            }
+        }
+    }
+}
+
 
 void MCgetgradientinit(list<InitPosobj> binitobj){
 	for (std::list<InitPosobj>::iterator it = binitobj.begin(); it != binitobj.end(); ++it) {
@@ -1789,6 +2247,12 @@ void MCgetgradienthydtorsion(list<BondDihedralobj> &dihedralobj){
 	}
 }
 
+void MCgetgradientsugarringtorsion(list<MultiBondDihedralobj> &dihedralobj){
+	for (std::list<MultiBondDihedralobj>::iterator it = dihedralobj.begin(); it != dihedralobj.end(); ++it) {
+		it->calcgradientmultidihedral();
+	}
+}
+
 double MCgetenergybangle(list<BondAngleobj> &bangleobj){
 	double energy=0.0;
 	for (std::list<BondAngleobj>::const_iterator it = bangleobj.begin(); it != bangleobj.end(); ++it) {
@@ -1802,6 +2266,15 @@ double MCgetenergyhydtor(list<BondDihedralobj> &hydtorobj){
     double energy=0.0;
 	for (std::list<BondDihedralobj>::const_iterator it = hydtorobj.begin(); it != hydtorobj.end(); ++it) {
 		energy+=it->calcenergydihedral();
+	}
+	
+	return energy;
+}
+
+double MCgetenergysugarringtor(list<MultiBondDihedralobj> &torobj){
+    double energy=0.0;
+	for (std::list<MultiBondDihedralobj>::const_iterator it = torobj.begin(); it != torobj.end(); ++it) {
+		energy+=it->calcenergymultidihedral();
 	}
 	
 	return energy;
@@ -1868,11 +2341,12 @@ double MCgetenergylj(list<LennardsJobj> &ljobj){
 }
 
 
-void MCgetgradient(list<BondLengthobj> &blengthobj, list<BondAngleobj> &bangleobj, list<BondDihedralobj> &dihedralobj, list<BasePairobj> &bplaneobj, list<BasePairobj> &basepairobj, list<BPdistobj> &bpdistobj, list<Stackingobj> &stackobj, list<StackGeoobjMC> &stackgeoobj, list<InitPosobj> &binitobj, list<InitPairobj> &binitpairobj, list<InitPairobj> &btemplatepairobj, list<TElectrobj> &telecteobj, list<LennardsJobj> &ljobj, list<Hbondobj> &hbondobj, list<Hbond2hydobj> &hbondbpobj, list<Clashobj> &clashobj, list<SingleNtTemplateobjMC> &nttempobj)
+void MCgetgradient(list<BondLengthobj> &blengthobj, list<BondAngleobj> &bangleobj, list<BondDihedralobj> &dihedralobj, list<MultiBondDihedralobj> &sugardihedralobj, list<BasePairobj> &bplaneobj, list<BasePairobj> &basepairobj, list<BPdistobj> &bpdistobj, list<Stackingobj> &stackobj, list<StackGeoobjMC> &stackgeoobj, list<InitPosobj> &binitobj, list<InitPairobj> &binitpairobj, list<InitPairobj> &btemplatepairobj, list<TElectrobj> &telecteobj, list<LennardsJobj> &ljobj, list<Hbondobj> &hbondobj, list<Hbond2hydobj> &hbondbpobj, list<Clashobj> &clashobj, list<SingleNtTemplateobjMC> &nttempobj)
 {
-	if(blengthobj.size() > 0) MCgetgradientblength(blengthobj);
+	if(blengthobj.size() > 0)MCgetgradientblength(blengthobj);
 	if(bangleobj.size() > 0) MCgetgradientbangle(bangleobj);
     if(dihedralobj.size() > 0) MCgetgradienthydtorsion(dihedralobj);
+    if(sugardihedralobj.size() > 0) MCgetgradientsugarringtorsion(sugardihedralobj);
 	if(basepairobj.size() > 0) MCgetgradientbasepair(basepairobj);
     if(bplaneobj.size() > 0) MCgetgradientbaseplane(bplaneobj);
     if(bpdistobj.size() > 0) MCgetgradientbasepairdist(bpdistobj);
@@ -1889,11 +2363,11 @@ void MCgetgradient(list<BondLengthobj> &blengthobj, list<BondAngleobj> &bangleob
     if(nttempobj.size() > 0) MCgradientnttemp(nttempobj);
 }
 
-double MCgetcovalentenergystem(list<BondLengthobj> &blengthobj, list<BondAngleobj> &bangleobj, list<BondDihedralobj> &dihedralobj, list<BasePairobj> &bplaneobj, list<BasePairobj> &basepairobj, list<BPdistobj> &bpdistobj, list<Stackingobj> &stackobj, list<StackGeoobjMC> &stackgeoobj, list<InitPosobj> &binitobj, list<InitPairobj> &binitpairobj, list<InitPairobj> &btemplatepairobj, list<TElectrobj> &telecteobj, list<LennardsJobj> &ljobj, list<Hbondobj> &hbondobj, list<Hbond2hydobj> &hbondbpobj, list<Clashobj> &clashobj, list<SingleNtTemplateobjMC> &nttempobj)
+double MCgetcovalentenergystem(list<BondLengthobj> &blengthobj, list<BondAngleobj> &bangleobj, list<BondDihedralobj> &dihedralobj, list<MultiBondDihedralobj> &sugardihedralobj, list<BasePairobj> &bplaneobj, list<BasePairobj> &basepairobj, list<BPdistobj> &bpdistobj, list<Stackingobj> &stackobj, list<StackGeoobjMC> &stackgeoobj, list<InitPosobj> &binitobj, list<InitPairobj> &binitpairobj, list<InitPairobj> &btemplatepairobj, list<TElectrobj> &telecteobj, list<LennardsJobj> &ljobj, list<Hbondobj> &hbondobj, list<Hbond2hydobj> &hbondbpobj, list<Clashobj> &clashobj, list<SingleNtTemplateobjMC> &nttempobj)
 {
     bool disp = false;
-    double lengthene, angleene,hydtorene, bplaneene, bpene, bpdistene, initene, initdistene, templatedistene, telecteene, ljene, hbondene, stackene, stackgeoene, clashene, nttempene;
-    lengthene=0; angleene=0; hydtorene=0; bplaneene=0; bpene=0; bpdistene=0; initene=0;  initdistene=0; templatedistene=0; telecteene=0; ljene=0; hbondene=0; stackene=0; stackgeoene=0; clashene=0; nttempene=0;
+    double lengthene, angleene, torene, sugartorene, bplaneene, bpene, bpdistene, initene, initdistene, templatedistene, telecteene, ljene, hbondene, stackene, stackgeoene, clashene, nttempene;
+    lengthene=0; angleene=0; torene=0; sugartorene=0; bplaneene=0; bpene=0; bpdistene=0; initene=0;  initdistene=0; templatedistene=0; telecteene=0; ljene=0; hbondene=0; stackene=0; stackgeoene=0; clashene=0; nttempene=0;
     if(blengthobj.size() > 0){
             //cout<<"a1"<<endl;
 	    lengthene=MCgetenergyblength(blengthobj);
@@ -1906,8 +2380,14 @@ double MCgetcovalentenergystem(list<BondLengthobj> &blengthobj, list<BondAngleob
     }
     if(dihedralobj.size() > 0){
             //cout<<"a3"<<endl;
-	    hydtorene=MCgetenergyhydtor(dihedralobj);
-        if(disp) cout<<"Hyd: "<<hydtorene<<endl;
+	    torene=MCgetenergyhydtor(dihedralobj);
+        if(disp) cout<<"Hyd: "<<torene<<endl;
+	   }
+    
+    if(sugardihedralobj.size() > 0){
+            //cout<<"a3"<<endl;
+	    sugartorene=MCgetenergysugarringtor(sugardihedralobj);
+        if(disp) cout<<"Sugar tor: "<<sugartorene<<endl;
 	   }
 
     if(basepairobj.size() > 0){
@@ -1929,7 +2409,7 @@ double MCgetcovalentenergystem(list<BondLengthobj> &blengthobj, list<BondAngleob
     if(binitobj.size() > 0){
             //cout<<"a5"<<endl;
 	    initene=MCgetenergyinit(binitobj);
-        if(disp) cout<<"Init:" <<  bpene<<endl;
+        if(disp) cout<<"Init:" <<  initene<<endl;
     }
     if(binitpairobj.size() > 0){
             //cout<<"a5"<<endl;
@@ -1979,9 +2459,7 @@ double MCgetcovalentenergystem(list<BondLengthobj> &blengthobj, list<BondAngleob
         if(disp) cout<<"Nt:" <<  nttempene<<endl;
     }
 
-    //cout<<"a10"<<endl;
-    //cout<<lengthene << "-" << angleene << "-" << initene << "-" << bpene << "-" << telecteene<< "-" << ljene << "-" << hbondene << "-" << stackene << "-" << clashene <<endl;
-	return lengthene+angleene+hydtorene+bplaneene+bpene+bpdistene+initene+initdistene+templatedistene+telecteene+ljene+hbondene+stackene+stackgeoene+clashene+nttempene;
+    return lengthene+angleene+torene+sugartorene+bplaneene+bpene+bpdistene+initene+initdistene+templatedistene+telecteene+ljene+hbondene+stackene+stackgeoene+clashene+nttempene;
 }
 
 void MCinitgrad(vector<vector<Point3s>> &gradptv)
@@ -2235,12 +2713,12 @@ void MonteCarloSimulation::MCupdatestructure(const vector<vector<Point3s>> &grad
 	}
 }
 
-double MonteCarloSimulation::MClinesearch(const vector<vector<Point3s>> &gradient, list<BondLengthobj> &blengthobj, list<BondAngleobj> &bangleobj, list<BondDihedralobj> &dihedralobj, list<BasePairobj> &bplaneobj, list<BasePairobj> &basepairobj, list<BPdistobj> &bpdistobj, list<Stackingobj> &stackobj, list<StackGeoobjMC> &stackgeoobj, list<InitPosobj> &binitobj, list<InitPairobj> &binitdistobj, list<InitPairobj> &btemplatedistobj, list<TElectrobj> &telecteobj, list<LennardsJobj> &ljobj, list<Hbondobj> &hbondobj, list<Hbond2hydobj> &hbondbpobj, list<Clashobj> &clashobj, list<SingleNtTemplateobjMC> &nttempobj, const vector<bool> &moveresidues, double alpha0, double rho, double beta)
+double MonteCarloSimulation::MClinesearch(const vector<vector<Point3s>> &gradient, list<BondLengthobj> &blengthobj, list<BondAngleobj> &bangleobj, list<BondDihedralobj> &dihedralobj, list<MultiBondDihedralobj> &sugardihedralobj, list<BasePairobj> &bplaneobj, list<BasePairobj> &basepairobj, list<BPdistobj> &bpdistobj, list<Stackingobj> &stackobj, list<StackGeoobjMC> &stackgeoobj, list<InitPosobj> &binitobj, list<InitPairobj> &binitdistobj, list<InitPairobj> &btemplatedistobj, list<TElectrobj> &telecteobj, list<LennardsJobj> &ljobj, list<Hbondobj> &hbondobj, list<Hbond2hydobj> &hbondbpobj, list<Clashobj> &clashobj, list<SingleNtTemplateobjMC> &nttempobj, const vector<bool> &moveresidues, double alpha0, double rho, double beta)
 {
     double alpha = alpha0;
 
     double new_energy;
-    double init_energy =  MCgetcovalentenergystem(blengthobj, bangleobj, dihedralobj, bplaneobj, basepairobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitdistobj, btemplatedistobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
+    double init_energy =  MCgetcovalentenergystem(blengthobj, bangleobj, dihedralobj, sugardihedralobj, bplaneobj, basepairobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitdistobj, btemplatedistobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
 
     double grad_norm_sq = 0.0;
     for (int i=0;i<gradient.size();i++) {
@@ -2253,7 +2731,7 @@ double MonteCarloSimulation::MClinesearch(const vector<vector<Point3s>> &gradien
     while (true) {
         //cout<<"linesearch-" << alpha<<endl;
         MCupdatestructure(gradient, -alpha, moveresidues);
-        new_energy =  MCgetcovalentenergystem(blengthobj, bangleobj, dihedralobj, bplaneobj, basepairobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitdistobj, btemplatedistobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
+        new_energy =  MCgetcovalentenergystem(blengthobj, bangleobj, dihedralobj, sugardihedralobj, bplaneobj, basepairobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitdistobj, btemplatedistobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
 
         if (new_energy <= init_energy) {
             break;
@@ -2268,20 +2746,20 @@ double MonteCarloSimulation::MClinesearch(const vector<vector<Point3s>> &gradien
     return new_energy;
 }
 
-double MonteCarloSimulation::MCgoldenelectionsearch(const vector<vector<Point3s>> &gradient, list<BondLengthobj> &blengthobj, list<BondAngleobj> &bangleobj, list<BondDihedralobj> &dihedralobj, list<BasePairobj> &bplaneobj, list<BasePairobj> &basepairobj, list<BPdistobj> &bpdistobj, list<Stackingobj> &stackobj, list<StackGeoobjMC> &stackgeoobj, list<InitPosobj> &binitobj, list<InitPairobj> &binitdistobj, list<InitPairobj> &btemplatedistobj, list<TElectrobj> &telecteobj, list<LennardsJobj> &ljobj, list<Hbondobj> &hbondobj, list<Hbond2hydobj> &hbondbpobj, list<Clashobj> &clashobj, list<SingleNtTemplateobjMC> &nttempobj, const vector<bool> &moveresidues)
+double MonteCarloSimulation::MCgoldenelectionsearch(const vector<vector<Point3s>> &gradient, list<BondLengthobj> &blengthobj, list<BondAngleobj> &bangleobj, list<BondDihedralobj> &dihedralobj, list<MultiBondDihedralobj> &sugardihedralobj, list<BasePairobj> &bplaneobj, list<BasePairobj> &basepairobj, list<BPdistobj> &bpdistobj, list<Stackingobj> &stackobj, list<StackGeoobjMC> &stackgeoobj, list<InitPosobj> &binitobj, list<InitPairobj> &binitdistobj, list<InitPairobj> &btemplatedistobj, list<TElectrobj> &telecteobj, list<LennardsJobj> &ljobj, list<Hbondobj> &hbondobj, list<Hbond2hydobj> &hbondbpobj, list<Clashobj> &clashobj, list<SingleNtTemplateobjMC> &nttempobj, const vector<bool> &moveresidues)
 {
 	static const double goldenratio = .5*(sqrt(5.)-1.);
 	double step = 1.e-4;
 	double left = step*(1.-goldenratio);
 	double right = step*goldenratio;
         
-	double energyst = MCgetcovalentenergystem(blengthobj, bangleobj, dihedralobj, bplaneobj, basepairobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitdistobj, btemplatedistobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
+	double energyst = MCgetcovalentenergystem(blengthobj, bangleobj, dihedralobj, sugardihedralobj, bplaneobj, basepairobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitdistobj, btemplatedistobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
 	
 	MCupdatestructure(gradient, -right, moveresidues);
-	double energyR = MCgetcovalentenergystem(blengthobj, bangleobj, dihedralobj, bplaneobj, basepairobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitdistobj, btemplatedistobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
+	double energyR = MCgetcovalentenergystem(blengthobj, bangleobj, dihedralobj, sugardihedralobj, bplaneobj, basepairobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitdistobj, btemplatedistobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
 
 	MCupdatestructure(gradient, right-left, moveresidues);
-	double energyL = MCgetcovalentenergystem(blengthobj, bangleobj, dihedralobj, bplaneobj, basepairobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitdistobj, btemplatedistobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
+	double energyL = MCgetcovalentenergystem(blengthobj, bangleobj, dihedralobj, sugardihedralobj, bplaneobj, basepairobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitdistobj, btemplatedistobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
 
 	int stepnum = 0;
 	while(fabs(step) > 1e-10)
@@ -2293,7 +2771,7 @@ double MonteCarloSimulation::MCgoldenelectionsearch(const vector<vector<Point3s>
 			energyR = energyL;
 			left = step*(1.-goldenratio);
 			MCupdatestructure(gradient, right-left, moveresidues);
-			energyL = MCgetcovalentenergystem(blengthobj, bangleobj, dihedralobj, bplaneobj, basepairobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitdistobj, btemplatedistobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
+			energyL = MCgetcovalentenergystem(blengthobj, bangleobj, dihedralobj, sugardihedralobj, bplaneobj, basepairobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitdistobj, btemplatedistobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
 		}else
         {
             step = step - step*(1-goldenratio);
@@ -2301,7 +2779,7 @@ double MonteCarloSimulation::MCgoldenelectionsearch(const vector<vector<Point3s>
 			energyL = energyR;
             right = step*goldenratio;
 	        MCupdatestructure(gradient, -right, moveresidues);
-	        energyR = MCgetcovalentenergystem(blengthobj, bangleobj, dihedralobj, bplaneobj, basepairobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitdistobj, btemplatedistobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
+	        energyR = MCgetcovalentenergystem(blengthobj, bangleobj, dihedralobj, sugardihedralobj, bplaneobj, basepairobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitdistobj, btemplatedistobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
 	        MCupdatestructure(gradient, right-left, moveresidues);
 	    }
 	}
@@ -2310,16 +2788,207 @@ double MonteCarloSimulation::MCgoldenelectionsearch(const vector<vector<Point3s>
     return (energyL+energyR)/2.;
 }
 
+void MonteCarloSimulation::supbpfrag(int res1, int res2, int &minfragidx, double &minrmsd){
+	int i,j;
+	int atom;
+	int count;
+	vector<vector<double>> RotMatix;
+    vector<double> TranVect;
+    //vector<vector<double>> minRotMatix;
+    //vector<double> minTranVect;
+	minrmsd=100000000000;
+	double rmsd;
+    vector<double> xyz(3,0);
+	vector<double> xyztmp(3,0);
+	Point3s vec;
+	BasicFunc bf;
+    char base1, base2;
+    int base_idx_1, base_idx_2;
+
+    base1 = refinestr_temp[res1].aaa;
+    base2 = refinestr_temp[res2].aaa;
+
+    static map<char, vector<int>> targetatoms={
+	    {'A',{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21}},
+        {'C',{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19}},
+        {'G',{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22}},
+        {'U',{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19}}
+	};
+
+    vector<vector<Residueatoms>> bptemplate=BPTEMPLATE[base1][base2];
+
+	vector<vector<double> > xyz_list1(targetatoms[base1].size()+targetatoms[base2].size(), vector<double>(3,0));
+    vector<vector<double> > xyz_list2(targetatoms[base1].size()+targetatoms[base2].size(), vector<double>(3,0));
+
+    base_idx_1=0;
+    base_idx_2=1;
+    
+	for(i=0;i<bptemplate.size();i++)
+	{
+		count = 0;
+		for(j=0; j<targetatoms[base1].size();j++){
+            atom=targetatoms[base1][j];
+            xyz_list1[count][0]=refinestr_temp[res1].ptv[atom].x;
+            xyz_list1[count][1]=refinestr_temp[res1].ptv[atom].y;
+            xyz_list1[count][2]=refinestr_temp[res1].ptv[atom].z;
+
+            xyz_list2[count][0]=BPTEMPLATE[base1][base2][i][0].ptv[atom].x;
+            xyz_list2[count][1]=BPTEMPLATE[base1][base2][i][0].ptv[atom].y;
+            xyz_list2[count][2]=BPTEMPLATE[base1][base2][i][0].ptv[atom].z;
+
+            count+=1;
+		}
+
+		for(j=0; j<targetatoms[base2].size();j++){
+            atom=targetatoms[base2][j];
+            xyz_list1[count][0]=refinestr_temp[res2].ptv[atom].x;
+            xyz_list1[count][1]=refinestr_temp[res2].ptv[atom].y;
+            xyz_list1[count][2]=refinestr_temp[res2].ptv[atom].z;
+
+            xyz_list2[count][0]=BPTEMPLATE[base1][base2][i][1].ptv[atom].x;
+            xyz_list2[count][1]=BPTEMPLATE[base1][base2][i][1].ptv[atom].y;
+            xyz_list2[count][2]=BPTEMPLATE[base1][base2][i][1].ptv[atom].z;
+
+            count+=1;
+		}
+
+		bf.RotateCoor(xyz_list1,xyz_list2,RotMatix,TranVect);
+
+		rmsd=0;
+		count=0;
+		for(j=0; j<targetatoms[base1].size();j++){
+            atom=targetatoms[base1][j];
+            bf.Transform(xyz_list2[count],RotMatix,TranVect,xyztmp);
+            vec.x=refinestr_temp[res1].ptv[atom].x-xyztmp[0];
+            vec.y=refinestr_temp[res1].ptv[atom].y-xyztmp[1];
+            vec.z=refinestr_temp[res1].ptv[atom].z-xyztmp[2];
+
+            rmsd+=(vec.x*vec.x+vec.y*vec.y+vec.z*vec.z);
+            count+=1;
+		}
+
+		for(j=0; j<targetatoms[base2].size();j++){
+            atom=targetatoms[base2][j];
+            bf.Transform(xyz_list2[count],RotMatix,TranVect,xyztmp);
+
+            vec.x=refinestr_temp[res2].ptv[atom].x-xyztmp[0];
+            vec.y=refinestr_temp[res2].ptv[atom].y-xyztmp[1];
+            vec.z=refinestr_temp[res2].ptv[atom].z-xyztmp[2];
+
+            rmsd+=(vec.x*vec.x+vec.y*vec.y+vec.z*vec.z);
+            count+=1;
+		}
+        rmsd = sqrt(rmsd/count);
+
+		if(minrmsd > rmsd){
+            minrmsd=rmsd;
+            minfragidx=i;
+            //minRotMatix = RotMatix;
+            //minTranVect = TranVect;
+        }
+	}
+
+    static map<char, vector<int>> targetatoms_rep={
+	    {'A',{12,13,14,15,16,17,18,19,20,21}},
+        {'C',{12,13,14,15,16,17,18,19}},
+        {'G',{12,13,14,15,16,17,18,19,20,21,22}},
+        {'U',{12,13,14,15,16,17,18,19}}
+	};
+
+    vector<vector<double> > xyz_list3(targetatoms_rep[base1].size()+targetatoms_rep[base2].size(), vector<double>(3,0));
+    vector<vector<double> > xyz_list4(targetatoms_rep[base1].size()+targetatoms_rep[base2].size(), vector<double>(3,0));
+
+    if(minrmsd < 2.0){
+        count = 0;
+		for(j=0; j<targetatoms_rep[base1].size();j++){
+            atom=targetatoms[base1][j];
+            xyz_list3[count][0]=refinestr_temp[res1].ptv[atom].x;
+            xyz_list3[count][1]=refinestr_temp[res1].ptv[atom].y;
+            xyz_list3[count][2]=refinestr_temp[res1].ptv[atom].z;
+
+            xyz_list4[count][0]=BPTEMPLATE[base1][base2][minfragidx][base_idx_1].ptv[atom].x;
+            xyz_list4[count][1]=BPTEMPLATE[base1][base2][minfragidx][base_idx_1].ptv[atom].y;
+            xyz_list4[count][2]=BPTEMPLATE[base1][base2][minfragidx][base_idx_1].ptv[atom].z;
+
+            count+=1;
+		}
+
+		for(j=0; j<targetatoms_rep[base2].size();j++){
+            atom=targetatoms[base2][j];
+            xyz_list3[count][0]=refinestr_temp[res2].ptv[atom].x;
+            xyz_list3[count][1]=refinestr_temp[res2].ptv[atom].y;
+            xyz_list3[count][2]=refinestr_temp[res2].ptv[atom].z;
+
+            xyz_list4[count][0]=BPTEMPLATE[base1][base2][minfragidx][base_idx_2].ptv[atom].x;
+            xyz_list4[count][1]=BPTEMPLATE[base1][base2][minfragidx][base_idx_2].ptv[atom].y;
+            xyz_list4[count][2]=BPTEMPLATE[base1][base2][minfragidx][base_idx_2].ptv[atom].z;
+
+            count+=1;
+		}
+
+        bf.RotateCoor(xyz_list3,xyz_list4,RotMatix,TranVect);
+
+        for(j=0; j<targetatoms_rep[base1].size();j++)
+        {
+            atom=targetatoms_rep[base1][j];
+
+            xyz[0]=BPTEMPLATE[base1][base2][minfragidx][base_idx_1].ptv[atom].x;
+            xyz[1]=BPTEMPLATE[base1][base2][minfragidx][base_idx_1].ptv[atom].y;
+            xyz[2]=BPTEMPLATE[base1][base2][minfragidx][base_idx_1].ptv[atom].z;
+
+            bf.Transform(xyz,RotMatix,TranVect,xyztmp);
+            refinestr_temp[res1].ptv[atom].x = xyztmp[0];
+            refinestr_temp[res1].ptv[atom].y = xyztmp[1];
+            refinestr_temp[res1].ptv[atom].z = xyztmp[2];
+        }
+
+        for(j=0; j<targetatoms_rep[base2].size();j++)
+        {
+            atom=targetatoms_rep[base2][j];
+
+            xyz[0]=BPTEMPLATE[base1][base2][minfragidx][base_idx_2].ptv[atom].x;
+            xyz[1]=BPTEMPLATE[base1][base2][minfragidx][base_idx_2].ptv[atom].y;
+            xyz[2]=BPTEMPLATE[base1][base2][minfragidx][base_idx_2].ptv[atom].z;
+
+            bf.Transform(xyz,RotMatix,TranVect,xyztmp);
+            refinestr_temp[res2].ptv[atom].x = xyztmp[0];
+            refinestr_temp[res2].ptv[atom].y = xyztmp[1];
+            refinestr_temp[res2].ptv[atom].z = xyztmp[2];
+        }
+    }
+}
+
+void MonteCarloSimulation::supbpfragmain(const vector<vector<int>> &basepairlist)
+{
+	int i,j,k;
+	int res1, res2;
+	string base1, base2;
+    int minfragidx; 
+    double minrmsd;
+    int baseorder;
+
+    map<string, string> basebpname = {{"A-U", "A-U"}, {"U-A", "A-U"}, {"G-C", "G-C"}, {"C-G", "G-C"}, {"G-U", "G-U"}, {"U-G", "G-U"}};
+    
+    for(int i=0;i<basepairlist.size();i++)
+    {
+        res1=basepairlist[i][0];
+        res2=basepairlist[i][1];
+        supbpfrag(res1, res2, minfragidx, minrmsd);
+    }
+}
+
 void MonteCarloSimulation::MCfragmentoptimization(
     const map<int, vector<Point3s>> &initstructure, const vector<vector<int>> &bindingmap,
     const vector<bool> &moveresidues, const vector<vector<int>> &contactmap, const vector<vector<double>> &stackingmap,
     const vector<vector<int>> &basepairlist, const vector<vector<int>> &noncbasepairlist,
-    const vector<double> &basepairscorelist, const vector<double> &noncbasepairscorelist){
+    const vector<double> &basepairscorelist, const vector<double> &noncbasepairscorelist, 
+    const bool bpoption){
     double weight_rand=Random();
 
     //map<string, double> enecoeff={{"length", 400}, {"angle",120}, {"hydtor", 0}, {"dihedral", 0}, {"init", 0}, {"init_dist", 1.0}, {"template_dist", 1.0}, {"improper", 0}, {"electros", 1.0}, {"LJ", 1.0}, {"HBond", 20.0}, {"BP", 1.0}, {"BPdist", 0.0}, {"Stack", 2.0}, {"StackGeo", 5.0}, {"Clash", 5.0}, {"Nt", 5.0}, {"BasePlane", 5.0}};
     //map<string, double> enecoeff={{"length", 400}, {"angle",120}, {"hydtor", 0}, {"dihedral", 0}, {"init", 0}, {"init_dist", 0.5}, {"template_dist", 0.5}, {"improper", 0}, {"electros", 1.0}, {"LJ", 1.0}, {"HBond", 20.0}, {"BP", 0.0}, {"BPdist", 0.0}, {"Stack", 0.5}, {"StackGeo", 0.0}, {"Clash", 5.0}, {"Nt", 0.0}, {"BasePlane", 5.0}};
-    map<string, double> enecoeff={{"length", 400}, {"angle",120}, {"hydtor", 0}, {"dihedral", 0}, {"init", 0}, {"init_dist", 0.5}, {"template_dist", 0.5}, {"improper", 0}, {"electros", 1.0}, {"LJ", 1.0}, {"HBond", 10.0}, {"BP", 1.0}, {"BPdist", 0.0}, {"Stack", 0.5}, {"StackGeo", 0.0}, {"Clash", 5.0}, {"Nt", 0.5}, {"BasePlane", 1.0}};
+    map<string, double> enecoeff={{"length", 400}, {"angle",120}, {"tor", 0.0}, {"sugar", 0.0}, {"dihedral", 0}, {"init", 0}, {"init_dist", 3.0}, {"template_dist", 3.0}, {"improper", 0}, {"electros", 1.0}, {"LJ", 1.0}, {"HBond", 25.0}, {"BBHBond", 7.5}, {"BBBaseHBond", 0.0}, {"BP", 7.5}, {"BPdist", 3.0}, {"Stack", 0.5}, {"StackGeo", 0.0}, {"Clash", 5.0}, {"Nt", 0.0}, {"BasePlane", 17.5}};
+    //map<string, double> enecoeff={{"length", 0}, {"angle",0}, {"tor", 0.0}, {"sugar", 0.0}, {"init", 0}, {"init_dist", 0}, {"template_dist", 0}, {"improper", 0}, {"electros", 0}, {"LJ", 0}, {"HBond", 0.0}, {"BBHBond", 5.0}, {"BP", 0.0}, {"BPdist", 0.0}, {"Stack", 0.0}, {"StackGeo", 0.0}, {"Clash", 0}, {"Nt", 0}, {"BasePlane", 0.0}};
 
     //optimization
     vector<vector<Point3s>> gradptv;
@@ -2346,6 +3015,7 @@ void MonteCarloSimulation::MCfragmentoptimization(
     list<BondLengthobj> blengthobj;
 	list<BondAngleobj> bangleobj;
     list<BondDihedralobj> dihedralobj;
+    list<MultiBondDihedralobj> sugardihedralobj;
     list<BasePairobj> bpobj;
     list<BasePairobj> baseplaneobj;
     list<BPdistobj> bpdistobj;
@@ -2360,8 +3030,6 @@ void MonteCarloSimulation::MCfragmentoptimization(
 
     vector<vector<int>> nt_indices;
     vector<vector<int>> bp_indices;
-    vector<vector<int>> stack_indices;
-    vector<vector<int>> stack_orders;
     vector<vector<Point3s*>> basestackptrsA;
     vector<vector<Point3s*>> basestackptrsB;
     vector<vector<Point3s*>> basestackgradA;
@@ -2380,24 +3048,28 @@ void MonteCarloSimulation::MCfragmentoptimization(
 
     if(enecoeff["angle"] > 0) MCsetangleobj(bindingmap, gradptv, enecoeff["angle"], bangleobj);
 
+    if(enecoeff["tor"] > 0) MCsetdangleobj(bindingmap, gradptv, enecoeff["tor"], dihedralobj);
+
+    if(enecoeff["sugar"] > 0) MCsetdsugarangleobj(bindingmap, gradptv, enecoeff["sugar"], sugardihedralobj);
+    
     if(enecoeff["BP"] > 0) MCsetbasepairobj(gradptv, basepairlist, noncbasepairlist, basepairscorelist, noncbasepairscorelist, AtomPtrslist, Atomgradlist, enecoeff["BP"], bpobj);
 
     if(enecoeff["BasePlane"] > 0) MCsetbaseplaneobj(gradptv, BaseAtomPtrslist, BaseAtomgradlist, moveresidues, enecoeff["BasePlane"], baseplaneobj);
 
-    if(enecoeff["BPdist"] > 0) MCsetbpdistobj(gradptv, basepairlist, bp_indices, enecoeff["BPdist"], bpdistobj);
+    if(enecoeff["BPdist"] > 0) MCsetbpdistobj(gradptv, basepairlist, basepairscorelist, enecoeff["BPdist"], bpdistobj);
 
-    if(enecoeff["Stack"] > 0) MCsetstackingobj(gradptv, stackingmap, stack_indices, stack_orders, enecoeff["Stack"], stackobj);
+    if(enecoeff["Stack"] > 0) MCsetstackingobj(gradptv, stackingmap, enecoeff["Stack"], stackobj);
 
     if(enecoeff["StackGeo"] > 0) MCsetstackinggeoobj(gradptv, stackingmap, basestackptrsA, basestackptrsB, basestackgradA, basestackgradB, enecoeff["StackGeo"], stackgeoobj);
 
     if(enecoeff["Nt"] > 0) MCsetnttemplateobj(gradptv, nt_indices, enecoeff["Nt"], nttempobj);
 
-    if(enecoeff["electros"] > 0 || enecoeff["LJ"] > 0 || enecoeff["HBond"] > 0 || enecoeff["Clash"] > 0) MCsetNonbondedobj(gradptv, contactmap, bindingmap, basepairlist, noncbasepairlist, basepairscorelist, noncbasepairscorelist, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, enecoeff);
+    if(enecoeff["electros"] > 0 || enecoeff["LJ"] > 0 || enecoeff["HBond"] > 0 || enecoeff["BBHBond"] > 0 || enecoeff["BBBaseHBond"] > 0 || enecoeff["Clash"] > 0) MCsetNonbondedobj(gradptv, contactmap, bindingmap, basepairlist, noncbasepairlist, basepairscorelist, noncbasepairscorelist, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, enecoeff);
 
     if(enecoeff["electros"] <= 0) telecteobj.clear();
     if(enecoeff["LJ"] <= 0) ljobj.clear();
     
-    if(enecoeff["HBond"] <= 0){
+    if(enecoeff["HBond"] <= 0 && enecoeff["BBHBond"] <= 0 && enecoeff["BBBaseHBond"] <= 0){
         hbondobj.clear();
         hbondbpobj.clear();
     }
@@ -2408,19 +3080,52 @@ void MonteCarloSimulation::MCfragmentoptimization(
 
     int estop_counter, stop_count;
     double averagenorm, energy, minenergy;
-    int epochs=200;
-    stop_count = 5;
+    int steps=200;
+    stop_count = 3;
     minenergy = 1.0 / 0.0;
     estop_counter=0;  
 
-    double startene = MCgetcovalentenergystem(blengthobj, bangleobj, dihedralobj, baseplaneobj, bpobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
+    bool reset_frag = true;
+    int proc_step = 4;
+    int frag_rest_iter = 15;
 
-    for (int epoch = 0; epoch < epochs; ++epoch){
+    double startene = MCgetcovalentenergystem(blengthobj, bangleobj, dihedralobj, sugardihedralobj, baseplaneobj, bpobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
+
+    for (int step = 0; step < steps; ++step){
+
+        if(step > 0 && (step % frag_rest_iter) == 0)
+        {
+            if(bpoption) supbpfragmain(basepairlist);
+
+            //cout<<"===================="<<endl;
+            //cout<<hbondobj.size() << "-" << hbondbpobj.size()<<endl;
+            MCresetNonbondedobj(gradptv, contactmap, bindingmap, basepairlist, noncbasepairlist, basepairscorelist, noncbasepairscorelist, hbondobj, hbondbpobj, enecoeff);
+            //cout<<hbondobj.size() << "-" << hbondbpobj.size()<<endl;
+
+            //cout<<"===================="<<endl;
+            //cout<<stackobj.size() << "-" << bpdistobj.size()<<endl;
+            if(enecoeff["Stack"] > 0){
+                stackobj.clear();
+                MCsetstackingobj(gradptv, stackingmap, enecoeff["Stack"], stackobj);
+            }
+
+            if(enecoeff["BPdist"] > 0){
+                bpdistobj.clear();
+                MCsetbpdistobj(gradptv, basepairlist, basepairscorelist, enecoeff["BPdist"], bpdistobj);
+            }
+            //cout<<stackobj.size() << "-" << bpdistobj.size()<<endl;
+
+            reset_frag = true;
+            s_list.clear();
+            y_list.clear();
+            rho_list.clear();
+        }
+
         MCinitgrad(gradptv);
-        MCgetgradient(blengthobj, bangleobj, dihedralobj, baseplaneobj, bpobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
+        MCgetgradient(blengthobj, bangleobj, dihedralobj, sugardihedralobj, baseplaneobj, bpobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
         //averagenorm = calcaveragenorm(gradptv);
-
-        if(epoch > 1){
+        
+        if(!reset_frag){
             MCupdatelbfgsfeatures(refinestr_temp_prev, gradptv, gradptv_prev, s_list, y_list, rho_list, moveresidues, m);
             MClbfgsupdate(gradptv, s_list, y_list, rho_list, moveresidues, z); //lbfgs
         }
@@ -2439,34 +3144,49 @@ void MonteCarloSimulation::MCfragmentoptimization(
         gradptv_prev=gradptv; //lbfgs
 
         //energy = goldenelectionsearch(superimposedstr, gradptv, blengthobj, bangleobj, bpobj, binitobj, telecteobj, ljobj, hbondobj, moveresidues);
-        if(epoch > 1){
+        if(!reset_frag){
             averagenorm = MCcalcaveragenorm(z, 10000);
             //energy = goldenelectionsearch(superimposedstr, z, blengthobj, bangleobj, bpobj, binitobj, telecteobj, ljobj, hbondobj, moveresidues); //lbfgs
             double alpha0 = 1.0;
             double rho = 0.5;
             double beta = 0.1;
-            energy = MClinesearch(z, blengthobj, bangleobj, dihedralobj, baseplaneobj, bpobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj, moveresidues, alpha0, rho, beta);
-        }else{
+            energy = MClinesearch(z, blengthobj, bangleobj, dihedralobj, sugardihedralobj, baseplaneobj, bpobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj, moveresidues, alpha0, rho, beta);
+        }
+        else{
             averagenorm = MCcalcaveragenorm(gradptv, 10000);
             //cout<<"fff"<<endl;
-            energy = MCgoldenelectionsearch(gradptv, blengthobj, bangleobj, dihedralobj, baseplaneobj, bpobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj, moveresidues);
+            energy = MCgoldenelectionsearch(gradptv, blengthobj, bangleobj, dihedralobj, sugardihedralobj, baseplaneobj, bpobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj, moveresidues);
             //cout<<"ggg"<<endl;
+            reset_frag = false;
         }
 
-        //cout<< "epoch "<<epoch+1 << ": "<< energy<<endl;
+        //cout<< "epoch "<<epoch+1 << ": "<< energy << "=================="<<endl;
 
+        if(((step+1) % frag_rest_iter) == 0){
+            if(energy < minenergy){
+                minenergy = energy;
+                estop_counter = 0;
+            }else{
+                estop_counter += 1;
+            }
+
+            if(stop_count == estop_counter) break;
+        }
+
+        /*
         if(energy < minenergy){
             minenergy = energy;
             estop_counter = 0;
         }else{
             estop_counter += 1;
         }
-
-
         if(stop_count == estop_counter) break;
+        */
     }
 
-    double endene = MCgetcovalentenergystem(blengthobj, bangleobj, dihedralobj, bpobj, baseplaneobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
+    double endene = MCgetcovalentenergystem(blengthobj, bangleobj, dihedralobj, sugardihedralobj, bpobj, baseplaneobj, bpdistobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
+    //exit(1);
+
 }
 
 

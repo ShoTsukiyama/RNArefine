@@ -35,6 +35,7 @@ bool loadtorsion(string basepath, map<string, vector<pair<vector<int>, vector<do
 bool loadstackparameters(string basepath, map<int, map<string, map<string, vector<vector<double>>>>> &stparameter);
 bool loadbpparameters(string basepath, map<string, map<string, vector<vector<double>>>> &stparameter);
 bool loadbphbondparameters(string basepath, map<char, map<char, map<int, map<int, HydroBondParameters>>>> &stparameter);
+bool loadbbhbondparameters(string basepath, map<char, map<int, map<int, BBHydroBondParameters>>> &stparameter);
 #endif
 
 
