@@ -1,4 +1,4 @@
-<img width="1088" alt="Image" src="https://github.com/ShoTsukiyama/RNArefine/issues/2#issue-3923166588" />
+<img width="1088" alt="Image" src="https://github.com/user-attachments/assets/74b1c947-95a2-48c1-9f73-d5e83dd60abb" />
   
 ## Overview
 RNArefine predicts base-pair and base-stacking interactions from RNA 3D structures and refines the structures.  
