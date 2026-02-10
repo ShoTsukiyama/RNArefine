@@ -18,7 +18,6 @@ Follow these steps to build and install RNArefine from the source.
 <br>
 1. Prepare the Build Directory  
 We recommend using an out-of-source build to keep the source tree clean.
-
 ```
 cd RNArefine
 mkdir build && cd build
