@@ -22,14 +22,14 @@ We recommend using an out-of-source build to keep the source tree clean.
 cd RNArefine
 mkdir build && cd build
 ```
-<br>
+
 2. Configure the Project  
 Run cmake to generate the build files.
 
 ```  
 cmake ..  
 ```
-<br>
+
 3. Compile and Install  
 Build the binaries and install them to your system.
 
