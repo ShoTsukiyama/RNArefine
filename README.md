@@ -99,6 +99,15 @@ The refinement type can be selected from the following options.
 | 2 | L-BFGS-based refinement |
 | 3 | MC-based refinement + L-BFGS-based refinement |
 
+<br>
+
+example)  
+If you want to refine a structure at ./Examples/example.pdb basd on the predicted base-pairing (./Examples/out/RNArefine_bp.txt) and base-stacking (./Examples/out/RNArefine_stack.txt) interactions, run the following command.  
+```
+RNArefine -i ./Examples/example.pdb -o ./Examples/out -bp ./Examples/out/RNArefine_bp.txt -st ./Examples/out/RNArefine_stack.txt
+```
+<br>
+
 ## Citation
 
 
