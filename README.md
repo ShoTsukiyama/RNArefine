@@ -14,6 +14,7 @@ Unzip the file (models.zip) and place the directory (models) in the RNArefine.
 Follow these steps to build and install RNArefine from the source.  
 1. Prepare the Build Directory  
 We recommend using an out-of-source build to keep the source tree clean.
+
 ```
 cd RNArefine
 mkdir build && cd build
@@ -21,12 +22,14 @@ mkdir build && cd build
 <br>
 2. Configure the Project  
 Run cmake to generate the build files.
+
 ```  
 cmake ..  
 ```
 <br>
 3. Compile and Install  
 Build the binaries and install them to your system.
+
 ```  
 make  
 make install  
