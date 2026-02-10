@@ -90,8 +90,7 @@ RNArefine -i <input_pdb_file> -o <output_directory> -bp <input_bp_file> -st <inp
 | -mtime | MC-based refinement time [seconds] | 7200 |
 | -ltime | L-BFGS-based refinement time [seconds] | 3600 |
 | -verbose | Enables detailed logging. | False |
-  
-<br>
+   
 ※ The refinement type can be selected from the following options.
 | Mode | Description |
 | :-------------: | :-------------: |
@@ -99,8 +98,7 @@ RNArefine -i <input_pdb_file> -o <output_directory> -bp <input_bp_file> -st <inp
 | 1 | MC-based refinement |
 | 2 | L-BFGS-based refinement |
 | 3 | MC-based refinement + L-BFGS-based refinement |
-
-<br>
+  
 ※ Log is written to output/directory/logs/output.log.  
 
 <br>
