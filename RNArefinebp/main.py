@@ -424,7 +424,7 @@ if __name__ == "__main__":
     else:
         bb_bp = load_basepairs(bppath)
     
-    output_int(bb_bp, f"{outpath}/RNAref3D_bp.txt")
+    output_int(bb_bp, f"{outpath}/RNArefine_bp.txt")
 
     bpmap, nt2pnt = get_bpmap(bb_bp, pdbidx2seqidx, str_size[1])
     
@@ -448,7 +448,7 @@ if __name__ == "__main__":
     else:
         bb_stack = pd.DataFrame([], columns = ["chain_i", "chain_j", "base_i", "base_j", "base_i_nt", "base_j_nt", "score"])
     
-    output_int(bb_stack, f"{outpath}/RNAref3D_stack.txt")
+    output_int(bb_stack, f"{outpath}/RNArefine_stack.txt")
     
     #os.makedirs(outpath, exist_ok = True)
     #bb_stack.to_csv(f"{outpath}/RNAref3D_stack.csv", index = False)
