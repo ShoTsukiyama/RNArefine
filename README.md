@@ -22,14 +22,14 @@ mkdir build && cd build
 2. Configure the Project  
 Run cmake to generate the build files.
 ```  
-cmake ..
+cmake ..  
 ```
 <br>
 3. Compile and Install  
 Build the binaries and install them to your system.
 ```  
-make
-make install
+make  
+make install  
 ```
 
 <br>
