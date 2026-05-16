@@ -70,7 +70,11 @@ Point3s BasicFunc::setvs(double tx,double ty,double tz)
 
 void BasicFunc::basenormalize(Point3s &p1)
 {
-  double  b = 1/sqrt((double)(p1.x*p1.x + p1.y*p1.y + p1.z*p1.z));
+  double n2 = p1.x*p1.x + p1.y*p1.y + p1.z*p1.z; 
+  if(n2 < 1e-15) {
+      return;
+  }
+  double  b = 1.0/sqrt(n2);
   p1.x *= b;
   p1.y *= b;
   p1.z *= b;
@@ -255,7 +259,12 @@ Point3d BasicFunc::crossang(Point3d p1,Point3d p2)
 
 void BasicFunc::normalize(double a[3])
 {
-  double  b = 1/sqrt((double)(a[0]*a[0] + a[1]*a[1] + a[2]*a[2]));
+  double n2 = a[0]*a[0] + a[1]*a[1] + a[2]*a[2];
+  if(n2 < 1e-15) {
+	  return;
+  }
+
+  double  b = 1.0/sqrt(n2);
   a[0] *= b;
   a[1] *= b;
   a[2] *= b;
@@ -263,7 +272,11 @@ void BasicFunc::normalize(double a[3])
 
 void BasicFunc::normalize(Point3s &p1)
 {
-  double  b = 1/sqrt((double)(p1.x*p1.x + p1.y*p1.y + p1.z*p1.z));
+  double n2 = p1.x*p1.x + p1.y*p1.y + p1.z*p1.z;
+  if(n2 < 1e-15) {
+      return;
+  }
+  double  b = 1.0/sqrt(n2);
   p1.x *= b;
   p1.y *= b;
   p1.z *= b;
@@ -508,6 +521,23 @@ void BasicFunc::RotateCoor(const vector<vector<double> > target_stru,const vecto
 		  ref_xlist[n][i] -= ref_com[i];
 		}
 	}
+
+	double mov_var = 0.0, ref_var = 0.0;
+        for (int nn=0; nn<n_list; nn++){
+            mov_var += mov_xlist[nn][0]*mov_xlist[nn][0] + mov_xlist[nn][1]*mov_xlist[nn][1] + mov_xlist[nn][2]*mov_xlist[nn][2];
+            ref_var += ref_xlist[nn][0]*ref_xlist[nn][0] + ref_xlist[nn][1]*ref_xlist[nn][1] + ref_xlist[nn][2]*ref_xlist[nn][2];
+        }
+
+	if (mov_var < 1e-12 || ref_var < 1e-12){
+            RotMatix.assign(3, vector<double>(3, 0.0));
+	    for(int ii=0; ii<3; ii++) RotMatix[ii][ii] = 1.0;
+
+	    TranVect.assign(3, 0.0);
+	    TranVect[0] = ref_com[0] - mov_com[0];
+            TranVect[1] = ref_com[1] - mov_com[1];
+            TranVect[2] = ref_com[2] - mov_com[2];
+	    return;
+	}
 	
 	/* initialize */
 	for (i=0; i<3; i++)
@@ -556,7 +586,22 @@ void BasicFunc::RotateCoor(const vector<vector<double> > target_stru,const vecto
 	* or right-handed. Let's force into right-handed system.
 	*/
 	cross(&right_eigenvec[2][0], &right_eigenvec[0][0], &right_eigenvec[1][0]);
-	
+
+        double n2 = right_eigenvec[2][0]*right_eigenvec[2][0]
+          + right_eigenvec[2][1]*right_eigenvec[2][1]
+          + right_eigenvec[2][2]*right_eigenvec[2][2];
+
+	if(n2 < 1e-15){
+            RotMatix.assign(3, vector<double>(3, 0.0));
+            for(int ii=0; ii<3; ii++) RotMatix[ii][ii] = 1.0;
+
+            TranVect.assign(3, 0.0);
+            TranVect[0] = ref_com[0] - mov_com[0];
+            TranVect[1] = ref_com[1] - mov_com[1];
+            TranVect[2] = ref_com[2] - mov_com[2];
+            return;
+        }
+
 	/* From the Kabsch algorithm, the eigenvec's of RtR
 	* are identical to the right_eigenvec's of R.
 	* This means that left_eigenvec = R x right_eigenvec 

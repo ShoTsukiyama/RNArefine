@@ -256,7 +256,7 @@ def preprocess(pdbpath, pred_type):
             
             coordinates = torch.tensor([coordinates_[j][target_atom] if target_atom in coordinates_[j] else [np.inf, np.inf, np.inf] for j in range(len(coordinates_))]).float().unsqueeze(0)
             
-            trans1, coord_mask, maked_trans = build_trans3d_from_coordinates(coordinates)
+            trans, coord_mask, maked_trans = build_trans3d_from_coordinates(coordinates)
             
             trans = torch.concat([trans, maked_trans.unsqueeze(1)], dim = 1)
             coord_mask = torch.concat([(coord_mask.long()), torch.tensor([1]).unsqueeze(1)], dim = 1)
