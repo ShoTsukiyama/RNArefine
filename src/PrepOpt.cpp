@@ -639,10 +639,10 @@ void setbaseplaneobj(FragmentStructure &stru, vector<vector<Point3s>> &gradient,
         Atomgrad.clear();
 
         for(k=12;k<heavily_atom_num[aat];k++){
-            Point3s* respt = &stru.residues[res].atoms[k].coord;
+            Point3s* respt = &stru.residues[i].atoms[k].coord;
             AtomPtrs.push_back(respt);
 
-            Point3s* resgradpt = &gradient[res][k];
+            Point3s* resgradpt = &gradient[i][k];
             Atomgrad.push_back(resgradpt);
         }
 
