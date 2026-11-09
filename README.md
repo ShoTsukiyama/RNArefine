@@ -16,10 +16,29 @@ Unzip the file (models.zip) and place the directory (models) in the RNArefine.
 ## 1-3. Setup of refinement package
 Follow these steps to build and install RNArefine from the source.  
 
+Create and activate the conda environment from the package root (conda must already be installed):
+```bash
+cd RNArefine
+conda env create -f environment.yaml
+conda activate rnarefine-predict
+```
+
+Install PyTorch 2.5.1 by selecting one of the following commands (Linux x86_64):
+```bash
+python install_torch.py cpu    # CPU
+python install_torch.py cu118  # CUDA 11.8
+python install_torch.py cu121  # CUDA 12.1
+python install_torch.py cu124  # CUDA 12.4
+```
+Alternatively, detect the driver-supported CUDA build on the GPU compute node:
+```bash
+python install_torch.py auto
+```
+Automatic selection stops if no GPU is detected; it does not fall back to CPU. On a login node, explicitly select the CUDA build for the compute node. GPU builds require a compatible NVIDIA driver and GPU; automatic mode checks GPU execution after installation. Explicit mode defers that check if no GPU is available; rerun the same command on the compute node to verify it. PySCIPOpt pip wheels require glibc 2.28 or newer on Linux. Keep this environment active when running interaction prediction.
+
 1\. Prepare the Build Directory  
 We recommend using an out-of-source build to keep the source tree clean.
 ```
-cd RNArefine
 mkdir build && cd build
 ```
 

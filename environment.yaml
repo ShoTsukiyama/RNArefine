@@ -1,0 +1,19 @@
+name: rnarefine-predict
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python=3.10.16
+  - pip=25.1
+  - pip:
+      - numpy==2.2.6
+      - pandas==2.2.3
+      - scipy==1.15.3
+      - biopython==1.85
+      - gemmi==0.7.3
+      - einops==0.8.1
+      - scikit-learn==1.6.1
+      - joblib==1.5.1
+      - cvxpy==1.6.6
+      - pyscipopt==5.5.0
+      - lightgbm==4.6.0
