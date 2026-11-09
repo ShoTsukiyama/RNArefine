@@ -132,7 +132,7 @@ RNArefine -i ./Examples/example.pdb -o ./Examples/out -bp ./Examples/out/RNArefi
 <br>
 
 ## Citation
-
+Sho Tsukiyama, Yang Li, Kengo Sato, Hiroyuki Kurata, Yang Zhang. Coupling physical simulations with AI-driven restraints enables atomic-level RNA structure refinement. submitted, 2026.
 
 
 
