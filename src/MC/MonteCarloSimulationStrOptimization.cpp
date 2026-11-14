@@ -2090,7 +2090,7 @@ void MCgetgradientbasepair(list<BasePairobj> &basepairobj){
 
 double MCgetenergybasepair(list<BasePairobj> &basepairobj){
 	double energy=0.0;
-	for (std::list<BasePairobj>::const_iterator it = basepairobj.begin(); it != basepairobj.end(); ++it) {
+	for (std::list<BasePairobj>::iterator it = basepairobj.begin(); it != basepairobj.end(); ++it) {
 		energy+=it->calcenergybasepair();
 	}
 	
@@ -2105,7 +2105,7 @@ void MCgetgradientbaseplane(list<BasePairobj> &baseplaneobj){
 
 double MCgetenergybaseplane(list<BasePairobj> &baseplaneobj){
 	double energy=0.0;
-	for (std::list<BasePairobj>::const_iterator it = baseplaneobj.begin(); it != baseplaneobj.end(); ++it) {
+	for (std::list<BasePairobj>::iterator it = baseplaneobj.begin(); it != baseplaneobj.end(); ++it) {
 		energy+=it->calcenergybasepair();
 	}
 	
@@ -2497,6 +2497,7 @@ void MonteCarloSimulation::MCupdatelbfgsfeatures(const vector<vector<Point3s>> &
         }
     }
    
+    if (rho_new <= 0.0) return;
     rho_new = 1.0/(rho_new+1e-7);
     
     if(m > 0 ){
@@ -2775,7 +2776,8 @@ double MonteCarloSimulation::MCgoldenelectionsearch(const vector<vector<Point3s>
 		}else
         {
             step = step - step*(1-goldenratio);
-            left = right;
+            //left = right;
+            left = right - left;
 			energyL = energyR;
             right = step*goldenratio;
 	        MCupdatestructure(gradient, -right, moveresidues);
@@ -2785,7 +2787,13 @@ double MonteCarloSimulation::MCgoldenelectionsearch(const vector<vector<Point3s>
 	}
 
 	MCupdatestructure(gradient, left-step/2, moveresidues);
-    return (energyL+energyR)/2.;
+    //return (energyL+energyR)/2.;
+    return MCgetcovalentenergystem(
+        blengthobj, bangleobj, dihedralobj, sugardihedralobj, 
+        bplaneobj, basepairobj, bpdistobj, stackobj, stackgeoobj, 
+        binitobj, binitdistobj, btemplatedistobj, telecteobj, 
+        ljobj, hbondobj, hbondbpobj, clashobj, nttempobj
+    );
 }
 
 void MonteCarloSimulation::supbpfrag(int res1, int res2, int &minfragidx, double &minrmsd){

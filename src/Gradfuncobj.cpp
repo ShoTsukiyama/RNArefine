@@ -1554,15 +1554,18 @@ BasePairobj::BasePairobj(const vector<Point3s*>& _AtomPtrs, const vector<Point3s
   */
 }
 
-double BasePairobj::calcenergybasepair() const
+double BasePairobj::calcenergybasepair() //const
 {
-  double dEnergy = K*TotalSQRDistance();
+  //double dEnergy = K*TotalSQRDistance();
 
   //cout<<dEnergy<<endl;
 
   //for(std::list<TSpring>::const_iterator I = BaseSprings.begin(), end = BaseSprings.end(); I != end; ++I)
     //dEnergy += I->dCalcEnergy(); 
   
+  //return (isnan(dEnergy)) ? 0. : dEnergy;
+
+  double dEnergy = K * Fit3DPlane();
   return (isnan(dEnergy)) ? 0. : dEnergy;
 }
 

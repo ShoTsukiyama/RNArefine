@@ -6,11 +6,11 @@ The interactions are predicted using a geometric attention-based neural network.
 
 # 1. Installation  
 ## 1-1. Downloading of pre-defined parameters  
-Download the statistical parameters and structure fragments from [here](https://zenodo.org/records/18601761/files/init_param.zip?download=1).  
+Download the statistical parameters and structure fragments from [here](https://zenodo.org/records/20083345/files/init_param.zip?download=1).  
 Unzip the file (init_param.zip) and place the directory (init_param) in the RNArefine.  
 
 ## 1-2. Downloading of trained models  
-Download the trained models from [here](https://zenodo.org/records/18601761/files/models.zip?download=1).  
+Download the trained models from [here](https://zenodo.org/records/20083345/files/models.zip?download=1).  
 Unzip the file (models.zip) and place the directory (models) in the RNArefine.  
   
 ## 1-3. Setup of refinement package

@@ -1784,7 +1784,7 @@ void getgradientbasepair(list<BasePairobj> &baseplaneobj){
 
 double getenergybasepair(list<BasePairobj> &basepairobj){
 	double energy=0.0;
-	for (std::list<BasePairobj>::const_iterator it = basepairobj.begin(); it != basepairobj.end(); ++it) {
+	for (std::list<BasePairobj>::iterator it = basepairobj.begin(); it != basepairobj.end(); ++it) {
 		energy+=it->calcenergybasepair();
 	}
 	
@@ -1799,7 +1799,7 @@ void getgradientbaseplane(list<BasePairobj> &basepairobj){
 
 double getenergybaseplane(list<BasePairobj> &baseplaneobj){
 	double energy=0.0;
-	for (std::list<BasePairobj>::const_iterator it = baseplaneobj.begin(); it != baseplaneobj.end(); ++it) {
+	for (std::list<BasePairobj>::iterator it = baseplaneobj.begin(); it != baseplaneobj.end(); ++it) {
 		energy+=it->calcenergybasepair();
 	}
 	
@@ -1814,7 +1814,7 @@ void getgradientbasepairdist(list<BPdistobj> &bpdistobj){
 
 double getenergybasepairdist(list<BPdistobj> &bpdistobj){
 	double energy=0.0;
-	for (std::list<BPdistobj>::const_iterator it = bpdistobj.begin(); it != bpdistobj.end(); ++it) {
+	for (std::list<BPdistobj>::iterator it = bpdistobj.begin(); it != bpdistobj.end(); ++it) {
 		energy+=it->calcenergybp();
 	}
 	
@@ -2248,7 +2248,7 @@ void updatestructure(FragmentStructure &stru, const vector<vector<Point3s>> &gra
 
 double goldenelectionsearch(FragmentStructure &stru, const vector<vector<Point3s>> &gradient, list<BondLengthobj> &blengthobj, list<BondAngleobj> &bangleobj, list<BondDihedralobj> &dihedralobj, list<MultiBondDihedralobj> &sugardihedralobj, list<BasePairobj> &baseplaneobj, list<BasePairobj> &basepairobj, list<BPdistobj> &bpdistobj, list<Stackingobj> &stackobj, list<StackGeoobjMC> &stackgeoobj, list<InitPosobj> &binitobj, list<InitPairobj> &binitpairobj, list<InitPairobj> &btemplatepairobj, list<TElectrobj> &telecteobj, list<LennardsJobj> &ljobj, list<Hbondobj> &hbondobj, list<Hbond2hydobj> &hbondbpobj, list<Clashobj> &clashobj, list<SingleNtTemplateobj> &nttempobj, vector<bool> &moveresidues)
 {
-	static const double goldenratio = 0.5*(sqrt(5.0)-1.);
+	static const double goldenratio = 0.5 * (sqrt(5.0) - 1.0);
 	double step = 1.0e-4;
 	double left = step*(1.0-goldenratio);
 	double right = step*goldenratio;
@@ -2281,7 +2281,8 @@ double goldenelectionsearch(FragmentStructure &stru, const vector<vector<Point3s
         {
             //cout<<step << "-" << left<<endl;
             step = step - step*(1-goldenratio);
-            left = right;
+            //left = right;
+            left = right - left;
 			energyL = energyR;
             right = step*goldenratio;
             updatestructure(stru, gradient, -right, moveresidues);
@@ -2294,7 +2295,15 @@ double goldenelectionsearch(FragmentStructure &stru, const vector<vector<Point3s
 
     //exit(1);
 	updatestructure(stru, gradient, left-step/2, moveresidues);
-    return (energyL+energyR)/2.;
+    //return (energyL+energyR)/2.;
+    return getcovalentenergystem(
+        blengthobj, bangleobj, dihedralobj, sugardihedralobj,
+        baseplaneobj, basepairobj, bpdistobj,
+        stackobj, stackgeoobj,
+        binitobj, binitpairobj, btemplatepairobj,
+        telecteobj, ljobj, hbondobj, hbondbpobj,
+        clashobj, nttempobj
+    );
 }
 
 double linesearch(FragmentStructure &stru, const vector<vector<Point3s>> &gradient, list<BondLengthobj> &blengthobj, list<BondAngleobj> &bangleobj, list<BondDihedralobj> &dihedralobj, list<MultiBondDihedralobj> &sugardihedralobj, list<BasePairobj> &baseplaneobj, list<BasePairobj> &basepairobj, list<BPdistobj> &bpdistobj, list<Stackingobj> &stackobj, list<StackGeoobjMC> &stackgeoobj, list<InitPosobj> &binitobj, list<InitPairobj> &binitpairobj, list<InitPairobj> &btemplatepairobj, list<TElectrobj> &telecteobj, list<LennardsJobj> &ljobj, list<Hbondobj> &hbondobj, list<Hbond2hydobj> &hbondbpobj, list<Clashobj> &clashobj, list<SingleNtTemplateobj> &nttempobj, vector<bool> &moveresidues, double alpha0, double rho, double beta)
@@ -2358,7 +2367,8 @@ double goldenelectionsearchloop(FragmentStructure &stru, const vector<vector<Poi
 			energyL = getcovalentenergystemloop(blengthobj, bangleobj, dihedralobj, sugardihedralobj, baseplaneobj, bpobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
 		}else{
 			step = step - left;
-			left = right;
+			//left = right;
+            left = right - left;
 			energyL = energyR;
 			right = step*goldenratio;
 			updatestructure(stru, gradient, -right, moveresidues);
@@ -2368,7 +2378,11 @@ double goldenelectionsearchloop(FragmentStructure &stru, const vector<vector<Poi
 	}
 
 	updatestructure(stru, gradient, left-step/2, moveresidues);
-	return (energyL+energyR)/2.;
+	//return (energyL+energyR)/2.;
+    return getcovalentenergystemloop(
+        blengthobj, bangleobj, dihedralobj, sugardihedralobj, baseplaneobj, 
+        bpobj, stackobj, stackgeoobj, binitobj, binitpairobj, btemplatepairobj, 
+        telecteobj, ljobj, hbondobj, hbondbpobj, clashobj, nttempobj);
 }
 
 void getljpairs(FragmentStructure &superimposedstr, vector<vector<Point3s>> &gradient, const map<string, map<int, vector<double>>> &atomfeatures, int res1, int res2, vector<vector<int>> molConnect, list<LennardsJobj> &ljobj)
@@ -3455,7 +3469,8 @@ void updatelbfgsfeatures(const FragmentStructure &superimposedstr, const Fragmen
             }
         }
     }
-   
+    
+    if (rho_new <= 0.0) return;
     rho_new = 1.0/(rho_new+1e-7);
     
     if(m > 0 ){

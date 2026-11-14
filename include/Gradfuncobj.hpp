@@ -354,7 +354,7 @@ class BasePairobj
 		BasePairobj(const vector<Point3s*>& _AtomPtrs, const vector<Point3s*>& _Atomgrad, const double &_K);
 			//: AtomPtrs(_AtomPtrs), Atomgrad(_Atomgrad) {}
 
-		double calcenergybasepair() const;
+		double calcenergybasepair(); //const;
     	void calcgradientbasepair();
 };
 
