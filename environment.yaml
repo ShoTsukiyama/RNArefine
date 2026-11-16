@@ -5,6 +5,7 @@ channels:
 dependencies:
   - python=3.10.16
   - pip=25.1
+  - pyscipopt=5.5.0
   - pip:
       - numpy==2.2.6
       - pandas==2.2.3
@@ -15,5 +16,6 @@ dependencies:
       - scikit-learn==1.6.1
       - joblib==1.5.1
       - cvxpy==1.6.6
-      - pyscipopt==5.5.0
       - lightgbm==4.6.0
+variables:
+  PYTHONNOUSERSITE: "1"

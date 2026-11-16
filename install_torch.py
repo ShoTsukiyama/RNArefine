@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Install PyTorch 2.5.1 in the active conda environment (Linux x86_64)."""
+"""Install PyTorch 2.5.1 (Linux x86_64 or macOS Apple Silicon CPU)."""
 import argparse
 import importlib.metadata
 import os
 from pathlib import Path
 import platform
 import re
+import site
 import subprocess
 import sys
 
@@ -72,17 +73,24 @@ def main():
     parser.add_argument('variant', choices=VARIANTS)
     parser.add_argument('--dry-run', action='store_true', help='Show the command without installing.')
     args = parser.parse_args()
-    if platform.system() != 'Linux' or platform.machine() not in ('x86_64', 'AMD64'):
-        parser.error('This installer targets Linux x86_64.')
+    mac_arm = platform.system() == 'Darwin' and platform.machine() == 'arm64'
+    linux_x86 = platform.system() == 'Linux' and platform.machine() in ('x86_64', 'AMD64')
+    if not (mac_arm or linux_x86):
+        parser.error('Supported platforms: Linux x86_64 and macOS Apple Silicon.')
+    if mac_arm and args.variant != 'cpu':
+        parser.error('On macOS Apple Silicon, specify cpu; CUDA/auto require Linux NVIDIA GPUs.')
     prefix = os.environ.get('CONDA_PREFIX')
     if not prefix or Path(prefix).resolve() != Path(sys.prefix).resolve():
         parser.error('Activate the prediction conda environment and use its python first.')
     if sys.version_info[:2] != (3, 10):
         parser.error('The supplied environment requires Python 3.10.')
+    if site.ENABLE_USER_SITE:
+        parser.error('Set PYTHONNOUSERSITE=1 before running Python, or reactivate the environment created from environment.yaml.')
     variant = detect_variant() if args.variant == 'auto' else args.variant
-    target = f'{VERSION}+{variant}'
+    target = VERSION if mac_arm else f'{VERSION}+{variant}'
+    index_url = 'https://pypi.org/simple' if mac_arm else f'https://download.pytorch.org/whl/{variant}'
     command = [sys.executable, '-m', 'pip', 'install', f'torch=={target}',
-               '--index-url', f'https://download.pytorch.org/whl/{variant}']
+               '--index-url', index_url]
     print('Selected:', target, flush=True)
     if args.dry_run:
         print(' '.join(command))

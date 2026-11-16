@@ -7,55 +7,50 @@ The interactions are predicted using a geometric attention-based neural network.
 # 1. Installation  
 ## 1-1. Downloading of pre-defined parameters  
 Download the statistical parameters and structure fragments from [here](https://zenodo.org/records/20083345/files/init_param.zip?download=1).  
-Unzip the file (init_param.zip) and place the directory (init_param) in the RNArefine.  
+Unzip the file (init_param.zip) and place `init_param/` in the package root.
 
 ## 1-2. Downloading of trained models  
 Download the trained models from [here](https://zenodo.org/records/20083345/files/models.zip?download=1).  
-Unzip the file (models.zip) and place the directory (models) in the RNArefine.  
+Unzip the file (models.zip) and place `models/` in the package root.
   
 ## 1-3. Setup of refinement package
-Follow these steps to build and install RNArefine from the source.  
+Requirements: Conda, CMake 3.15 or later, a C++17 compiler, make, and OpenMP.
+On Ubuntu/Debian, install `build-essential` and `cmake`. On macOS Apple Silicon,
+install the Xcode Command Line Tools and Homebrew packages `cmake` and `libomp`
+(the latter under `/opt/homebrew/opt/libomp`).
 
-Create and activate the conda environment from the package root (conda must already be installed):
+Run all commands below from the package root containing `environment.yaml`,
+`RNArefinebp/`, `models/`, and `init_param/`.
+
+1. Create and activate the Python environment (bash/zsh):
 ```bash
-cd RNArefine
-conda env create -f environment.yaml
+source "$(conda info --base)/etc/profile.d/conda.sh"
+PYTHONNOUSERSITE=1 conda env create -f environment.yaml
 conda activate rnarefine-predict
 ```
 
-Install PyTorch 2.5.1 by selecting one of the following commands (Linux x86_64):
+2. Install PyTorch 2.5.1 using **one** command for your system:
 ```bash
-python install_torch.py cpu    # CPU
-python install_torch.py cu118  # CUDA 11.8
-python install_torch.py cu121  # CUDA 12.1
-python install_torch.py cu124  # CUDA 12.4
+python install_torch.py cpu    # Linux x86_64 or macOS Apple Silicon (CPU)
+python install_torch.py cu118  # Linux x86_64, NVIDIA GPU, CUDA 11.8
+python install_torch.py cu121  # Linux x86_64, NVIDIA GPU, CUDA 12.1
+python install_torch.py cu124  # Linux x86_64, NVIDIA GPU, CUDA 12.4
 ```
-Alternatively, detect the driver-supported CUDA build on the GPU compute node:
+On a Linux GPU compute node, `python install_torch.py auto` selects a build
+compatible with the NVIDIA driver. It requires a visible GPU. On a login node,
+select the CUDA build explicitly and rerun the command on the compute node to
+verify GPU execution. macOS supports the `cpu` option only.
+
+3. Build and install into the package's `.local` directory (no sudo required):
 ```bash
-python install_torch.py auto
+cmake -S . -B build -DCMAKE_INSTALL_PREFIX="$PWD/.local"
+cmake --build build
+cmake --install build
+export PATH="$PWD/.local/bin:$PATH"
 ```
-Automatic selection stops if no GPU is detected; it does not fall back to CPU. On a login node, explicitly select the CUDA build for the compute node. GPU builds require a compatible NVIDIA driver and GPU; automatic mode checks GPU execution after installation. Explicit mode defers that check if no GPU is available; rerun the same command on the compute node to verify it. PySCIPOpt pip wheels require glibc 2.28 or newer on Linux. Keep this environment active when running interaction prediction.
-
-1\. Prepare the Build Directory  
-We recommend using an out-of-source build to keep the source tree clean.
-```
-mkdir build && cd build
-```
-
-2\. Configure the Project  
-Run cmake to generate the build files.
-
-```  
-cmake ..  
-```
-
-3\. Compile and Install  
-Build the binaries and install them to your system.
-
-```  
-make  
-make install  
-```
+Keep the conda environment active when running prediction. In a new terminal,
+activate it again and repeat the `export PATH` command from the package root.
+If you move the package directory, repeat step 3.
 
 <br>
 
@@ -63,7 +58,7 @@ make install
 RNArefine predicts base-pair and base-stacking interactions by geometric attention-based neural network models.
 In the default setting, the prediction is conducted by backbone frames.  
 ```
-python RNArefine/RNArefinebp/main.py --pdb <input_pdb_file> -o <output_directory> [other options]
+python RNArefinebp/main.py --pdb <input_pdb_file> -o <output_directory> [other options]
 ```
 (Options)
 | Option  | Description | Default |
@@ -74,25 +69,25 @@ python RNArefine/RNArefinebp/main.py --pdb <input_pdb_file> -o <output_directory
 | -r  | C4'-trace-based prediction | None |   
 | -s  | Disables canonical base-pair constraints | None |   
 
-(Refer to the /RNArefine/example/RNArefine_bp.txt for the format of the base-pair file)
+(Refer to the `Examples/out/RNAref3D_bp.txt` for the format of the base-pair file)
 
 <br>
 
 example)   
 If you want to obtain the base-pair and base-stacking interactions, run the following command.  
 ```
-python RNArefiner/RNArefinebp/main.py --pdb ./Examples/example.pdb  -o ./Examples/out
+python RNArefinebp/main.py --pdb ./Examples/example.pdb  -o ./Examples/out
 ```
   
 If you only want to predict base-stacking interactions from base-pair information, run the following command.  
 ```
-python RNArefiner/RNArefinebp/main.py --pdb ./Examples/example.pdb  -o ./Examples/out -bp ./Examples/out/RNArefine_bp.txt
+python RNArefinebp/main.py --pdb ./Examples/example.pdb  -o ./Examples/out -bp ./Examples/out/RNArefine_bp.txt
 ```
 RNArefine_bp.txt and RNArefine_stack.txt are output to the directory specified by -o.
    
 <br>
 
-# 2. RNA 3D structure refinement
+# 3. RNA 3D structure refinement
 The following command executes the full-atomic structure generation and refinements of RNA 3D structures.  
 Here, base-paring and base-stacking interaction information must be inputted as follows.  
 ```
@@ -120,7 +115,7 @@ RNArefine -i <input_pdb_file> -o <output_directory> -bp <input_bp_file> -st <inp
 | 3 | MC-based refinement + L-BFGS-based refinement |
 &nbsp;
 
-※ Log is written to output/directory/logs/output.log.  
+With `-verbose`, logs are written to `<output_directory>/logs/` (main log: `basic.log`).
 
 <br>
 
@@ -129,6 +124,7 @@ If you want to refine a structure (./Examples/example.pdb) basd on the predicted
 ```
 RNArefine -i ./Examples/example.pdb -o ./Examples/out -bp ./Examples/out/RNArefine_bp.txt -st ./Examples/out/RNArefine_stack.txt
 ```
+The refined structure is saved as `./Examples/out/rnaref3d.pdb`.
 <br>
 
 ## Citation
