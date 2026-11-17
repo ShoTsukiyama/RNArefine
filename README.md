@@ -11,7 +11,7 @@ Video tutorials for installing and running RNArefine are available in English, S
 
 | English | Chinese | Japanese |
 | :---: | :---: | :---: |
-| <a href="https://github.com/user-attachments/assets/579fd826-a693-4478-ad34-5b12c7bcc511">Watch Video</a> | <a href="https://github.com/user-attachments/assets/76f3661c-5fa3-4bc8-90ba-f3aaca2a31d0">观看视频</a> | <a href="https://github.com/user-attachments/assets/1a9ccf5a-12af-4414-9868-b80aacd19bb2">動画を見る</a> |
+| <a href="https://github.com/user-attachments/assets/3746327f-2fac-4195-8dde-ea213422e43f">Watch Video</a> | <a href="https://github.com/user-attachments/assets/b4084277-6364-478a-8334-b3acc6439adc">观看视频</a> | <a href="https://github.com/user-attachments/assets/2b87f729-fffc-4510-ad32-1732a235e4bd">動画を見る</a> |
 
 # 1. Installation  
 ## 1-1. Downloading of pre-defined parameters  
@@ -138,6 +138,18 @@ The refined structure is saved as `./Examples/out/rnaref3d.pdb`.
 
 ## Citation
 Sho Tsukiyama, Yang Li, Kengo Sato, Hiroyuki Kurata, Yang Zhang. Coupling physical simulations with AI-driven restraints enables atomic-level RNA structure refinement. submitted, 2026.
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
